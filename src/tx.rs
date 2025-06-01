@@ -172,7 +172,7 @@ impl<'tx> GetInfo<PegoutDataInfo> for PegoutData<'tx> {
 			asset: self.asset.get_info(network),
 			genesis_hash: self.genesis_hash,
 			script_pub_key: hal::GetInfo::get_info(&hal::tx::OutputScript(&self.script_pubkey), BTCNET),
-			extra_data: self.extra_data.iter().map(|w| w.clone().into()).collect(),
+			extra_data: self.extra_data.iter().map(|w| HexBytes::from(*w)).collect(),
 		}
 	}
 }
