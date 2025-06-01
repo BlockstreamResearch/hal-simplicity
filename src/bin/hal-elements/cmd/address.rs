@@ -1,7 +1,7 @@
+use clap;
+use elements::bitcoin::{secp256k1, PublicKey};
 use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
-use elements::bitcoin::{secp256k1, PublicKey};
-use clap;
 
 use crate::cmd;
 
@@ -109,7 +109,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 			if version == 0 {
 				if program.len() == 20 {
 					info.type_ = Some("p2wpkh".to_owned());
-					info.witness_pubkey_hash = 
+					info.witness_pubkey_hash =
 						Some(WPubkeyHash::from_slice(&program).expect("size 20"));
 				} else if program.len() == 32 {
 					info.type_ = Some("p2wsh".to_owned());

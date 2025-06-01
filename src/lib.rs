@@ -4,8 +4,8 @@ pub mod tx;
 
 pub mod confidential;
 
-pub use hal::HexBytes;
 pub use elements::bitcoin;
+pub use hal::HexBytes;
 
 use elements::AddressParams;
 use serde::{Deserialize, Serialize};
