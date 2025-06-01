@@ -1,13 +1,13 @@
 use elements::encode::serialize;
-use elements::{
-	bitcoin, confidential, AssetIssuance, PeginData, PegoutData, Transaction, TxIn, TxInWitness,
-	TxOut, TxOutWitness, Txid, Wtxid, Script, Address,
-};
 use elements::secp256k1_zkp::{RangeProof, SurjectionProof};
+use elements::{
+	bitcoin, confidential, Address, AssetIssuance, PeginData, PegoutData, Script, Transaction,
+	TxIn, TxInWitness, TxOut, TxOutWitness, Txid, Wtxid,
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{GetInfo, Network, HexBytes};
+use crate::{GetInfo, HexBytes, Network};
 
 use crate::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 
@@ -54,7 +54,9 @@ impl<'tx> GetInfo<PeginDataInfo> for PeginData<'tx> {
 			genesis_hash: self.genesis_hash,
 			claim_script: self.claim_script.into(),
 			mainchain_tx_hex: self.tx.into(),
-			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(self.tx) {
+			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(
+				self.tx,
+			) {
 				Ok(tx) => Some(hal::GetInfo::get_info(&tx, BTCNET)),
 				Err(_) => None,
 			},
@@ -77,8 +79,14 @@ pub struct InputWitnessInfo {
 impl GetInfo<InputWitnessInfo> for TxInWitness {
 	fn get_info(&self, _network: Network) -> InputWitnessInfo {
 		InputWitnessInfo {
-			amount_rangeproof: self.amount_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
-			inflation_keys_rangeproof: self.inflation_keys_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
+			amount_rangeproof: self
+				.amount_rangeproof
+				.as_ref()
+				.map(|r| RangeProof::serialize(r).into()),
+			inflation_keys_rangeproof: self
+				.inflation_keys_rangeproof
+				.as_ref()
+				.map(|r| RangeProof::serialize(r).into()),
 			script_witness: if !self.script_witness.is_empty() {
 				Some(self.script_witness.iter().map(|w| w.clone().into()).collect())
 			} else {
@@ -171,7 +179,10 @@ impl<'tx> GetInfo<PegoutDataInfo> for PegoutData<'tx> {
 			value: self.value,
 			asset: self.asset.get_info(network),
 			genesis_hash: self.genesis_hash,
-			script_pub_key: hal::GetInfo::get_info(&hal::tx::OutputScript(&self.script_pubkey), BTCNET),
+			script_pub_key: hal::GetInfo::get_info(
+				&hal::tx::OutputScript(&self.script_pubkey),
+				BTCNET,
+			),
 			extra_data: self.extra_data.iter().map(|w| HexBytes::from(*w)).collect(),
 		}
 	}
@@ -186,7 +197,10 @@ pub struct OutputWitnessInfo {
 impl GetInfo<OutputWitnessInfo> for TxOutWitness {
 	fn get_info(&self, _network: Network) -> OutputWitnessInfo {
 		OutputWitnessInfo {
-			surjection_proof: self.surjection_proof.as_ref().map(|p| SurjectionProof::serialize(p).into()),
+			surjection_proof: self
+				.surjection_proof
+				.as_ref()
+				.map(|p| SurjectionProof::serialize(p).into()),
 			rangeproof: self.rangeproof.as_ref().map(|p| RangeProof::serialize(p).into()),
 		}
 	}
@@ -231,7 +245,6 @@ impl<'a> GetInfo<OutputScriptInfo> for OutputScript<'a> {
 		}
 	}
 }
-
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct OutputInfo {
