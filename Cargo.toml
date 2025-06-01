@@ -31,6 +31,7 @@ serde_yaml = "0.8.8"
 hex = "0.3.2"
 
 elements = { version = "0.25.2", features = [ "serde" ] }
+simplicity = { package = "simplicity-lang", version = "0.4.0", features = [ "serde" ] }
 
 [lints.clippy]
 # Exclude lints we don't think are valuable.
