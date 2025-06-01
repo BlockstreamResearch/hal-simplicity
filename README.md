@@ -1,26 +1,14 @@
-hal-elements -- an Elements extension of hal
+hal-simplicity -- a Simplictiy-enabled extension of hal
 ============================================
 
-An extension of [hal](https://github.com/stevenroose/hal).
+This is a fork of Steven Roose's [hal-elements](https://github.com/stevenroose/hal-elements/)
+which in turn is an extension of his Bitcoin tool [hal](https://github.com/stevenroose/hal).
 
 # Installation
 
 ```
-$ cargo install --locked hal hal-elements
+$ cargo install --locked hal hal-simplicity
 ```
 
-
-# Summary of commands:
-
-- address
-    - create: create addresses
-    - inspect: inspect addresses
-
-- block
-	- create: create a binary block from JSON
-	- decode: decode a binary block to JSON
-
-- tx
-	- create: create a binary transaction from JSON
-	- decode: decode a transaction to JSON
+You can also run it directly with `cargo run -- <command>`.
 
