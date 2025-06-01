@@ -1,10 +1,10 @@
-use bitcoin::hashes::sha256;
+use elements::hashes::sha256;
 use elements::{dynafed, Block, BlockExtData, BlockHeader, BlockHash, TxMerkleNode, Txid};
 use serde::{Deserialize, Serialize};
 
-use ::{GetInfo, Network, HexBytes};
+use crate::{GetInfo, Network, HexBytes};
 
-use tx::TransactionInfo;
+use crate::tx::TransactionInfo;
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

@@ -1,8 +1,8 @@
-use bitcoin::{secp256k1, PublicKey};
+use elements::bitcoin::{secp256k1, PublicKey};
 use elements::{Address, Script, PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use serde::{Deserialize, Serialize};
 
-use ::Network;
+use crate::Network;
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct AddressInfo {

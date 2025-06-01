@@ -1,13 +1,11 @@
-use bitcoin::hashes::Hash;
+use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
-use bitcoin::{secp256k1, PublicKey};
+use elements::bitcoin::{secp256k1, PublicKey};
 use clap;
 
-use cmd;
-use hal;
-use hex;
+use crate::cmd;
 
-use ::Network;
+use crate::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("address", "work with addresses")

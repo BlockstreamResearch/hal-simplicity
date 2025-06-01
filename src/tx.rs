@@ -7,9 +7,9 @@ use elements::secp256k1_zkp::{RangeProof, SurjectionProof};
 
 use serde::{Deserialize, Serialize};
 
-use ::{GetInfo, Network, HexBytes};
+use crate::{GetInfo, Network, HexBytes};
 
-use confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
+use crate::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 
 const BTCNET: elements::bitcoin::Network = elements::bitcoin::Network::Bitcoin;
 
@@ -95,13 +95,13 @@ impl GetInfo<InputWitnessInfo> for TxInWitness {
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct InputScriptInfo {
-	pub hex: Option<::HexBytes>,
+	pub hex: Option<HexBytes>,
 	pub asm: Option<String>,
 }
 
 pub struct InputScript<'a>(pub &'a Script);
 
-impl<'a> ::GetInfo<InputScriptInfo> for InputScript<'a> {
+impl<'a> GetInfo<InputScriptInfo> for InputScript<'a> {
 	fn get_info(&self, _network: Network) -> InputScriptInfo {
 		InputScriptInfo {
 			hex: Some(self.0.to_bytes().into()),
@@ -137,7 +137,7 @@ impl GetInfo<InputInfo> for TxIn {
 			txid: Some(self.previous_output.txid),
 			vout: Some(self.previous_output.vout),
 			sequence: Some(self.sequence.to_consensus_u32()),
-			script_sig: Some(::GetInfo::get_info(&InputScript(&self.script_sig), network)),
+			script_sig: Some(GetInfo::get_info(&InputScript(&self.script_sig), network)),
 
 			is_pegin: Some(self.is_pegin),
 			has_issuance: Some(self.has_issuance()),
@@ -194,7 +194,7 @@ impl GetInfo<OutputWitnessInfo> for TxOutWitness {
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct OutputScriptInfo {
-	pub hex: Option<::HexBytes>,
+	pub hex: Option<HexBytes>,
 	pub asm: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none", rename = "type")]
 	pub type_: Option<String>,
@@ -204,7 +204,7 @@ pub struct OutputScriptInfo {
 
 pub struct OutputScript<'a>(pub &'a Script);
 
-impl<'a> ::GetInfo<OutputScriptInfo> for OutputScript<'a> {
+impl<'a> GetInfo<OutputScriptInfo> for OutputScript<'a> {
 	fn get_info(&self, network: Network) -> OutputScriptInfo {
 		OutputScriptInfo {
 			hex: Some(self.0.to_bytes().into()),
@@ -259,7 +259,7 @@ impl GetInfo<OutputInfo> for TxOut {
 		};
 
 		OutputInfo {
-			script_pub_key: Some(::GetInfo::get_info(&OutputScript(&self.script_pubkey), network)),
+			script_pub_key: Some(GetInfo::get_info(&OutputScript(&self.script_pubkey), network)),
 			asset: Some(self.asset.get_info(network)),
 			value: Some(self.value.get_info(network)),
 			nonce: Some(self.nonce.get_info(network)),

@@ -1,8 +1,3 @@
-extern crate elements;
-extern crate hal;
-extern crate hex;
-extern crate serde;
-
 pub mod address;
 pub mod block;
 pub mod tx;

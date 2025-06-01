@@ -1,14 +1,3 @@
-#[macro_use]
-extern crate log;
-extern crate clap;
-extern crate elements;
-extern crate fern;
-extern crate hex;
-extern crate serde_json;
-
-extern crate hal;
-extern crate hal_elements;
-
 use std::panic;
 use std::process;
 

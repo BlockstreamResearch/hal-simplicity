@@ -3,9 +3,10 @@ use std::io::Write;
 use elements::encode::{deserialize, serialize};
 use elements::{dynafed, Block, BlockExtData, BlockHeader};
 
-use cmd;
-use cmd::tx::create_transaction;
+use crate::cmd;
+use crate::cmd::tx::create_transaction;
 use hal_elements::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
+use log::warn;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("block", "manipulate blocks")
@@ -144,7 +145,7 @@ fn exec_decode<'a>(matches: &clap::ArgMatches<'a>) {
 	if matches.is_present("txids") {
 		let block: Block = deserialize(&raw_tx).expect("invalid block format");
 		let info = BlockInfo {
-			header: ::GetInfo::get_info(&block.header, cmd::network(matches)),
+			header: crate::GetInfo::get_info(&block.header, cmd::network(matches)),
 			txids: Some(block.txdata.iter().map(|t| t.txid()).collect()),
 			transactions: None,
 			raw_transactions: None,
@@ -158,7 +159,7 @@ fn exec_decode<'a>(matches: &clap::ArgMatches<'a>) {
 				block.header
 			}
 		};
-		let info = ::GetInfo::get_info(&header, cmd::network(matches));
+		let info = crate::GetInfo::get_info(&header, cmd::network(matches));
 		cmd::print_output(matches, &info)
 	}
 }
