@@ -56,9 +56,9 @@ impl Addresses {
 	pub fn from_script(script: &Script, blinder: Option<secp256k1::PublicKey>, network: Network) -> Addresses {
 		let params = network.address_params();
 		Addresses {
-			p2sh: Some(Address::p2sh(&script, blinder, params)),
-			p2wsh: Some(Address::p2wsh(&script, blinder, params)),
-			p2shwsh: Some(Address::p2shwsh(&script, blinder, params)),
+			p2sh: Some(Address::p2sh(script, blinder, params)),
+			p2wsh: Some(Address::p2wsh(script, blinder, params)),
+			p2shwsh: Some(Address::p2shwsh(script, blinder, params)),
 			..Default::default()
 		}
 	}

@@ -7,7 +7,7 @@ use cmd;
 use hal;
 use hex;
 
-use ::{Network};
+use ::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("address", "work with addresses")
@@ -17,8 +17,8 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 
 pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
 	match matches.subcommand() {
-		("create", Some(ref m)) => exec_create(&m),
-		("inspect", Some(ref m)) => exec_inspect(&m),
+		("create", Some(m)) => exec_create(m),
+		("inspect", Some(m)) => exec_inspect(m),
 		(_, _) => unreachable!("clap prints help"),
 	};
 }

@@ -15,8 +15,8 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 
 pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
 	match matches.subcommand() {
-		("create", Some(ref m)) => exec_create(&m),
-		("decode", Some(ref m)) => exec_decode(&m),
+		("create", Some(m)) => exec_create(m),
+		("decode", Some(m)) => exec_decode(m),
 		(_, _) => unreachable!("clap prints help"),
 	};
 }

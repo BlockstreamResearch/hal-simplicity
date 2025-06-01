@@ -31,8 +31,8 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 
 pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
 	match matches.subcommand() {
-		("create", Some(ref m)) => exec_create(&m),
-		("decode", Some(ref m)) => exec_decode(&m),
+		("create", Some(m)) => exec_create(m),
+		("decode", Some(m)) => exec_decode(m),
 		(_, _) => unreachable!("clap prints help"),
 	};
 }
@@ -49,12 +49,12 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 /// Check both ways to specify the outpoint and panic if conflicting.
 fn outpoint_from_input_info(input: &InputInfo) -> OutPoint {
 	let op1: Option<OutPoint> =
-		input.prevout.as_ref().map(|ref op| op.parse().expect("invalid prevout format"));
+		input.prevout.as_ref().map(|op| op.parse().expect("invalid prevout format"));
 	let op2 = match input.txid {
 		Some(txid) => match input.vout {
 			Some(vout) => Some(OutPoint {
-				txid: txid,
-				vout: vout,
+				txid,
+				vout,
 			}),
 			None => panic!("\"txid\" field given in input without \"vout\" field"),
 		},
@@ -167,7 +167,7 @@ fn create_script_sig(ss: InputScriptInfo) -> Script {
 		}
 
 		hex.0.into()
-	} else if let Some(_) = ss.asm {
+	} else if ss.asm.is_some() {
 		panic!("Decoding script assembly is not yet supported.");
 	} else {
 		panic!("No scriptSig info provided.");
@@ -205,11 +205,11 @@ fn create_input_witness(
 	pd: Option<PeginDataInfo>,
 	prevout: OutPoint,
 ) -> TxInWitness {
-	let pegin_witness = if info.is_some() && info.as_ref().unwrap().pegin_witness.is_some() {
+	let pegin_witness = if let Some(info_wit) = info.as_ref().and_then(|info| info.pegin_witness.as_ref()) {
 		if pd.is_some() {
 			warn!("Field \"pegin_data\" of input is ignored.");
 		}
-		info.as_ref().unwrap().pegin_witness.clone().unwrap().iter().map(|h| h.clone().0).collect()
+		info_wit.iter().map(|h| h.clone().0).collect()
 	} else if let Some(pd) = pd {
 		create_pegin_witness(pd, convert_outpoint_to_btc(prevout))
 	} else {
@@ -226,11 +226,11 @@ fn create_input_witness(
 				Some(ref w) => w.iter().map(|h| h.clone().0).collect(),
 				None => Vec::new(),
 			},
-			pegin_witness: pegin_witness,
+			pegin_witness,
 		}
 	} else {
 		TxInWitness {
-			pegin_witness: pegin_witness,
+			pegin_witness,
 			..Default::default()
 		}
 	}
@@ -245,7 +245,7 @@ fn create_input(input: InputInfo) -> TxIn {
 		previous_output: prevout,
 		script_sig: input.script_sig.map(create_script_sig).unwrap_or_default(),
 		sequence: elements::Sequence::from_height(input.sequence.unwrap_or_default().try_into().unwrap()),
-		is_pegin: is_pegin,
+		is_pegin,
 		asset_issuance: if has_issuance {
 			input.asset_issuance.map(create_asset_issuance).unwrap_or_default()
 		} else {
@@ -273,7 +273,7 @@ fn create_script_pubkey(spk: OutputScriptInfo, used_network: &mut Option<Network
 
 		//TODO(stevenroose) do script sanity check to avoid blackhole?
 		hex.0.into()
-	} else if let Some(_) = spk.asm {
+	} else if spk.asm.is_some() {
 		if spk.address.is_some() {
 			warn!("Field \"address\" of output is ignored.");
 		}
@@ -308,7 +308,7 @@ fn create_bitcoin_script_pubkey(spk: hal::tx::OutputScriptInfo) -> bitcoin::Scri
 
 		//TODO(stevenroose) do script sanity check to avoid blackhole?
 		hex.0.into()
-	} else if let Some(_) = spk.asm {
+	} else if spk.asm.is_some() {
 		if spk.address.is_some() {
 			warn!("Field \"address\" of output is ignored.");
 		}
@@ -359,8 +359,8 @@ fn create_output(output: OutputInfo) -> TxOut {
 		.expect("Field \"asset\" is required for outputs.");
 
 	TxOut {
-		asset: asset,
-		value: value,
+		asset,
+		value,
 		nonce: output.nonce.map(create_confidential_nonce).unwrap_or(confidential::Nonce::Null),
 		script_pubkey: if let Some(spk) = output.script_pub_key {
 			if output.pegout_data.is_some() {

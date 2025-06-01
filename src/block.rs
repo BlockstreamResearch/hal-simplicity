@@ -6,18 +6,13 @@ use ::{GetInfo, Network, HexBytes};
 
 use tx::TransactionInfo;
 
-#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ParamsType {
+	#[default]
 	Null,
 	Compact,
 	Full,
-}
-
-impl Default for ParamsType {
-	fn default() -> ParamsType {
-		ParamsType::Null
-	}
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Deserialize, Serialize)]
@@ -38,7 +33,7 @@ pub struct ParamsInfo {
 	pub extension_space: Option<Vec<HexBytes>>,
 }
 
-impl<'a> GetInfo<ParamsInfo> for dynafed::Params {
+impl GetInfo<ParamsInfo> for dynafed::Params {
 	fn get_info(&self, _network: Network) -> ParamsInfo {
 		ParamsInfo {
 			params_type: match self {
@@ -52,7 +47,7 @@ impl<'a> GetInfo<ParamsInfo> for dynafed::Params {
 			},
 			signblockscript: self.signblockscript().map(|s| s.to_bytes().into()),
 			signblock_witness_limit: self.signblock_witness_limit(),
-			elided_root: self.elided_root().map(|r| *r),
+			elided_root: self.elided_root().copied(),
 			fedpeg_program: self.fedpeg_program().map(|p| p[..].into()),
 			fedpeg_script: self.fedpegscript().map(|s| s[..].into()),
 			extension_space: self
@@ -84,7 +79,7 @@ pub struct BlockHeaderInfo {
 	pub dynafed_witness: Option<Vec<HexBytes>>,
 }
 
-impl<'a> GetInfo<BlockHeaderInfo> for BlockHeader {
+impl GetInfo<BlockHeaderInfo> for BlockHeader {
 	fn get_info(&self, network: Network) -> BlockHeaderInfo {
 		let mut info = BlockHeaderInfo {
 			block_hash: Some(self.block_hash()),

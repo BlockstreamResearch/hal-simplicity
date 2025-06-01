@@ -25,9 +25,9 @@ pub enum Network {
 
 impl Network {
 	pub fn from_params(params: &'static AddressParams) -> Option<Network> {
-		match params {
-			&AddressParams::ELEMENTS => Some(Network::ElementsRegtest),
-			&AddressParams::LIQUID => Some(Network::Liquid),
+		match *params {
+			AddressParams::ELEMENTS => Some(Network::ElementsRegtest),
+			AddressParams::LIQUID => Some(Network::Liquid),
 			_ => None,
 		}
 	}

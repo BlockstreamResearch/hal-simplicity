@@ -54,7 +54,7 @@ impl<'tx> GetInfo<PeginDataInfo> for PeginData<'tx> {
 			genesis_hash: self.genesis_hash,
 			claim_script: self.claim_script.into(),
 			mainchain_tx_hex: self.tx.into(),
-			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(&self.tx) {
+			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(self.tx) {
 				Ok(tx) => Some(hal::GetInfo::get_info(&tx, BTCNET)),
 				Err(_) => None,
 			},
@@ -79,12 +79,12 @@ impl GetInfo<InputWitnessInfo> for TxInWitness {
 		InputWitnessInfo {
 			amount_rangeproof: self.amount_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
 			inflation_keys_rangeproof: self.inflation_keys_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
-			script_witness: if self.script_witness.len() > 0 {
+			script_witness: if !self.script_witness.is_empty() {
 				Some(self.script_witness.iter().map(|w| w.clone().into()).collect())
 			} else {
 				None
 			},
-			pegin_witness: if self.pegin_witness.len() > 0 {
+			pegin_witness: if !self.pegin_witness.is_empty() {
 				Some(self.pegin_witness.iter().map(|w| w.clone().into()).collect())
 			} else {
 				None
@@ -227,7 +227,7 @@ impl<'a> ::GetInfo<OutputScriptInfo> for OutputScript<'a> {
 				}
 				.to_owned(),
 			),
-			address: Address::from_script(&self.0, None, network.address_params()),
+			address: Address::from_script(self.0, None, network.address_params()),
 		}
 	}
 }
@@ -252,16 +252,10 @@ impl GetInfo<OutputInfo> for TxOut {
 		let is_fee = {
 			// An output is fee if both the asset and the value are explicit
 			// and if the output script is empty.
-			let exp_ass = match self.asset {
-				confidential::Asset::Explicit(_) => true,
-				_ => false,
-			};
-			let exp_val = match self.value {
-				confidential::Value::Explicit(_) => true,
-				_ => false,
-			};
+			let exp_ass = matches!(self.asset, confidential::Asset::Explicit(_));
+			let exp_val = matches!(self.value, confidential::Value::Explicit(_));
 
-			exp_ass && exp_val && self.script_pubkey.len() == 0
+			exp_ass && exp_val && self.script_pubkey.is_empty()
 		};
 
 		OutputInfo {
@@ -299,8 +293,8 @@ impl GetInfo<TransactionInfo> for Transaction {
 			version: Some(self.version),
 			locktime: Some(self.lock_time.to_u32()),
 			size: Some(serialize(self).len()),
-			weight: Some(self.weight() as usize),
-			vsize: Some((self.weight() / 4) as usize),
+			weight: Some(self.weight()),
+			vsize: Some(self.weight() / 4),
 			inputs: Some(self.input.iter().map(|i| i.get_info(network)).collect()),
 			outputs: Some(self.output.iter().map(|o| o.get_info(network)).collect()),
 		}
