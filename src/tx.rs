@@ -279,7 +279,7 @@ pub struct TransactionInfo {
 	pub weight: Option<usize>,
 	pub vsize: Option<usize>,
 	pub version: Option<u32>,
-	pub locktime: Option<u32>,
+	pub locktime: Option<elements::LockTime>,
 	pub inputs: Option<Vec<InputInfo>>,
 	pub outputs: Option<Vec<OutputInfo>>,
 }
@@ -291,7 +291,7 @@ impl GetInfo<TransactionInfo> for Transaction {
 			wtxid: Some(self.wtxid()),
 			hash: Some(self.wtxid()),
 			version: Some(self.version),
-			locktime: Some(self.lock_time.to_u32()),
+			locktime: Some(self.lock_time),
 			size: Some(serialize(self).len()),
 			weight: Some(self.weight()),
 			vsize: Some(self.weight() / 4),

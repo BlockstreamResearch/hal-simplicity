@@ -48,7 +48,7 @@ impl GetInfo<ParamsInfo> for dynafed::Params {
 			signblockscript: self.signblockscript().map(|s| s.to_bytes().into()),
 			signblock_witness_limit: self.signblock_witness_limit(),
 			elided_root: self.elided_root().copied(),
-			fedpeg_program: self.fedpeg_program().map(|p| p[..].into()),
+			fedpeg_program: self.fedpeg_program().map(|p| HexBytes::from(p.as_bytes())),
 			fedpeg_script: self.fedpegscript().map(|s| s[..].into()),
 			extension_space: self
 				.extension_space()
