@@ -32,6 +32,7 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 				.setting(clap::AppSettings::AllArgsOverrideSelf)
 				.subcommands(cmd::subcommands()),
 		)
+		.setting(clap::AppSettings::SubcommandRequiredElseHelp)
 		.arg(
 			cmd::opt("verbose", "print verbose logging output to stderr")
 				.short("v")
@@ -84,6 +85,6 @@ fn main() {
 				panic!("Subcommand not found: {}", m.subcommand().0);
 			}
 		}
-		(cmd, _) => panic!("Subcommand not found: {}", cmd),
+		(cmd, _) => panic!("Subcommand not found: {:?}", cmd),
 	}
 }

@@ -47,13 +47,24 @@ fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: 
 
 #[test]
 fn cli_empty() {
-	// FIXME this is definitely not what we want to show the user
 	assert_cmd(
 		&[],
-		"\
-Execution failed: Subcommand not found: 
-",
 		"",
+		"\
+hal-simplicity 0.2.1
+
+USAGE:
+    hal [FLAGS] <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+    -v, --verbose    print verbose logging output to stderr
+
+SUBCOMMANDS:
+    elements    hal-simplicity -- a Simplicity extension of hal
+    help        Prints this message or the help of the given subcommand(s)
+",
 	);
 }
 
@@ -63,7 +74,7 @@ fn cli_help() {
 hal-simplicity 0.2.1
 
 USAGE:
-    hal [FLAGS] [SUBCOMMAND]
+    hal [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -88,7 +99,7 @@ fn cli_bad_flag() {
 error: Found argument '-?' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal [FLAGS] [SUBCOMMAND]
+    hal [FLAGS] <SUBCOMMAND>
 
 For more information try --help
 ",
