@@ -1,0 +1,164 @@
+on:   # yamllint disable-line rule:truthy
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'test-ci/**'
+
+name: Continuous integration
+
+jobs:
+  Prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
+      msrv_version: ${{ steps.read_msrv.outputs.msrv_version }}
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Read nightly version"
+        id: read_toolchain
+        run: |
+          set -euo pipefail
+          version=$(cat nightly-version)
+          echo "nightly_version=$version" >> $GITHUB_OUTPUT
+      - name: Read MSRV from clippy.toml
+        id: read_msrv
+        run: |
+          set -euo pipefail
+          msrv=$(grep '^msrv *= *"' clippy.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "msrv_version=$msrv" >> "$GITHUB_OUTPUT"
+
+  Stable:
+    name: Test - stable toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [minimal, recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@stable
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh stable
+
+  Nightly:
+    name: Test - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [minimal, recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh nightly
+
+  MSRV:
+    name: Test - MSRV
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [minimal, recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ needs.Prepare.outputs.msrv_version }}
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh msrv
+
+  Lint:
+    name: Lint - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh lint
+
+  Docs:
+    name: Docs - stable toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@stable
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh docs
+
+  Docsrs:
+    name: Docs - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh docsrs
+
+  Format:
+    name: Format - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: "Install rustfmt"
+        run: rustup component add rustfmt
+      - name: "Check formatting"
+        run: cargo fmt --all -- --check
