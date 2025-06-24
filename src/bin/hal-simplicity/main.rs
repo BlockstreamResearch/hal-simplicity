@@ -3,7 +3,7 @@ use std::process;
 
 pub use elements::bitcoin;
 
-pub use hal_elements::{GetInfo, Network};
+pub use hal_simplicity::{GetInfo, Network};
 
 pub mod cmd;
 
@@ -19,13 +19,12 @@ fn setup_logger(lvl: log::LevelFilter) {
 
 /// Create the main app object.
 fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
-	clap::App::new("hal-elements")
+	clap::App::new("hal-simplicity")
 		.bin_name("hal")
 		.version(clap::crate_version!())
-		.author("Steven Roose <steven@stevenroose.org>")
 		.subcommand(
-			cmd::subcommand_group("elements", "an Elements extension for hal")
-				.about("hal-elements -- an Elements extension of hal")
+			cmd::subcommand_group("elements", "Elements extensions for hal")
+				.about("hal-simplicity -- a Simplicity extension of hal")
 				.setting(clap::AppSettings::GlobalVersion)
 				.setting(clap::AppSettings::VersionlessSubcommands)
 				.setting(clap::AppSettings::SubcommandRequiredElseHelp)

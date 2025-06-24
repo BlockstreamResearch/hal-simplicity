@@ -40,12 +40,12 @@ fn exec_create<'a>(matches: &clap::ArgMatches<'a>) {
 
 	let created = if let Some(pubkey_hex) = matches.value_of("pubkey") {
 		let pubkey: PublicKey = pubkey_hex.parse().expect("invalid pubkey");
-		hal_elements::address::Addresses::from_pubkey(&pubkey, blinder, network)
+		hal_simplicity::address::Addresses::from_pubkey(&pubkey, blinder, network)
 	} else if let Some(script_hex) = matches.value_of("script") {
 		let script_bytes = hex::decode(script_hex).expect("invalid script hex");
 		let script = script_bytes.into();
 
-		hal_elements::address::Addresses::from_script(&script, blinder, network)
+		hal_simplicity::address::Addresses::from_script(&script, blinder, network)
 	} else {
 		panic!("Can't create addresses without a pubkey");
 	};
@@ -63,7 +63,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 	let address: Address = address_str.parse().expect("invalid address format");
 	let script_pk = address.script_pubkey();
 
-	let mut info = hal_elements::address::AddressInfo {
+	let mut info = hal_simplicity::address::AddressInfo {
 		network: Network::from_params(address.params).expect("addresses always have params"),
 		script_pub_key: hal::tx::OutputScriptInfo {
 			hex: Some(script_pk.to_bytes().into()),

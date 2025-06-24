@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::io;
 use std::io::Read;
 
-use hal_elements::Network;
+use hal_simplicity::Network;
 
 /// Build a list of all built-in subcommands.
 pub fn subcommands<'a>() -> Vec<clap::App<'a, 'a>> {

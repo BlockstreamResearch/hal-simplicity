@@ -15,14 +15,14 @@ use elements::{
 use log::warn;
 
 use crate::cmd;
-use hal_elements::confidential::{
+use hal_simplicity::confidential::{
 	ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialType, ConfidentialValueInfo,
 };
-use hal_elements::tx::{
+use hal_simplicity::tx::{
 	AssetIssuanceInfo, InputInfo, InputScriptInfo, InputWitnessInfo, OutputInfo, OutputScriptInfo,
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
-use hal_elements::Network;
+use hal_simplicity::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("tx", "manipulate transactions")
