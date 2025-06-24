@@ -2,19 +2,15 @@ pub mod address;
 pub mod block;
 pub mod tx;
 
-use std::io;
 use std::borrow::Cow;
+use std::io;
 use std::io::Read;
 
 use hal_elements::Network;
 
 /// Build a list of all built-in subcommands.
 pub fn subcommands<'a>() -> Vec<clap::App<'a, 'a>> {
-	vec![
-		address::subcommand(),
-		block::subcommand(),
-		tx::subcommand(),
-	]
+	vec![address::subcommand(), block::subcommand(), tx::subcommand()]
 }
 
 /// Construct a new command option.
@@ -41,9 +37,7 @@ pub fn subcommand_group<'a>(name: &'static str, about: &'static str) -> clap::Ap
 
 /// Create a new subcommand using the template that sets all the common settings.
 pub fn subcommand<'a>(name: &'static str, about: &'static str) -> clap::App<'a, 'a> {
-	clap::SubCommand::with_name(name)
-		.about(about)
-		.setting(clap::AppSettings::DisableHelpSubcommand)
+	clap::SubCommand::with_name(name).about(about).setting(clap::AppSettings::DisableHelpSubcommand)
 }
 
 pub fn opts_networks<'a>() -> Vec<clap::Arg<'a, 'a>> {
@@ -95,8 +89,11 @@ pub fn arg_or_stdin<'a>(matches: &'a clap::ArgMatches<'a>, arg: &str) -> Cow<'a,
 		if input.is_empty() {
 			panic!("no '{}' argument given", arg);
 		}
-		String::from_utf8(input).unwrap_or_else(|e| panic!("invalid utf8 on stdin for '{}': {}", arg, e))
-			.trim().to_owned().into()
+		String::from_utf8(input)
+			.unwrap_or_else(|e| panic!("invalid utf8 on stdin for '{}': {}", arg, e))
+			.trim()
+			.to_owned()
+			.into()
 	}
 }
 

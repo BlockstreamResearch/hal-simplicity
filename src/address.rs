@@ -1,5 +1,5 @@
 use elements::bitcoin::{secp256k1, PublicKey};
-use elements::{Address, Script, PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
+use elements::{Address, PubkeyHash, Script, ScriptHash, WPubkeyHash, WScriptHash};
 use serde::{Deserialize, Serialize};
 
 use crate::Network;
@@ -43,7 +43,11 @@ pub struct Addresses {
 }
 
 impl Addresses {
-	pub fn from_pubkey(pubkey: &PublicKey, blinder: Option<secp256k1::PublicKey>, network: Network) -> Addresses {
+	pub fn from_pubkey(
+		pubkey: &PublicKey,
+		blinder: Option<secp256k1::PublicKey>,
+		network: Network,
+	) -> Addresses {
 		let params = network.address_params();
 		Addresses {
 			p2pkh: Some(Address::p2pkh(pubkey, blinder, params)),
@@ -53,7 +57,11 @@ impl Addresses {
 		}
 	}
 
-	pub fn from_script(script: &Script, blinder: Option<secp256k1::PublicKey>, network: Network) -> Addresses {
+	pub fn from_script(
+		script: &Script,
+		blinder: Option<secp256k1::PublicKey>,
+		network: Network,
+	) -> Addresses {
 		let params = network.address_params();
 		Addresses {
 			p2sh: Some(Address::p2sh(script, blinder, params)),
