@@ -1,8 +1,3 @@
-extern crate elements;
-extern crate hal;
-extern crate hex;
-extern crate serde;
-
 pub mod address;
 pub mod block;
 pub mod tx;
@@ -25,10 +20,12 @@ pub enum Network {
 
 impl Network {
 	pub fn from_params(params: &'static AddressParams) -> Option<Network> {
-		match params {
-			&AddressParams::ELEMENTS => Some(Network::ElementsRegtest),
-			&AddressParams::LIQUID => Some(Network::Liquid),
-			_ => None,
+		if *params == AddressParams::ELEMENTS {
+			Some(Network::ElementsRegtest)
+		} else if *params == AddressParams::LIQUID {
+			Some(Network::Liquid)
+		} else {
+			None
 		}
 	}
 

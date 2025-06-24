@@ -2,7 +2,7 @@ use elements::confidential::{Asset, Nonce, Value};
 use elements::AssetId;
 use serde::{Deserialize, Serialize};
 
-use ::{GetInfo, Network, HexBytes};
+use crate::{GetInfo, Network, HexBytes};
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

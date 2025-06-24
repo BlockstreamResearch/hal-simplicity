@@ -7,9 +7,9 @@ use elements::secp256k1_zkp::{RangeProof, SurjectionProof};
 
 use serde::{Deserialize, Serialize};
 
-use ::{GetInfo, Network, HexBytes};
+use crate::{GetInfo, Network, HexBytes};
 
-use confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
+use crate::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 
 const BTCNET: elements::bitcoin::Network = elements::bitcoin::Network::Bitcoin;
 
@@ -54,7 +54,7 @@ impl<'tx> GetInfo<PeginDataInfo> for PeginData<'tx> {
 			genesis_hash: self.genesis_hash,
 			claim_script: self.claim_script.into(),
 			mainchain_tx_hex: self.tx.into(),
-			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(&self.tx) {
+			mainchain_tx: match bitcoin::consensus::encode::deserialize::<bitcoin::Transaction>(self.tx) {
 				Ok(tx) => Some(hal::GetInfo::get_info(&tx, BTCNET)),
 				Err(_) => None,
 			},
@@ -79,12 +79,12 @@ impl GetInfo<InputWitnessInfo> for TxInWitness {
 		InputWitnessInfo {
 			amount_rangeproof: self.amount_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
 			inflation_keys_rangeproof: self.inflation_keys_rangeproof.as_ref().map(|r| RangeProof::serialize(r).into()),
-			script_witness: if self.script_witness.len() > 0 {
+			script_witness: if !self.script_witness.is_empty() {
 				Some(self.script_witness.iter().map(|w| w.clone().into()).collect())
 			} else {
 				None
 			},
-			pegin_witness: if self.pegin_witness.len() > 0 {
+			pegin_witness: if !self.pegin_witness.is_empty() {
 				Some(self.pegin_witness.iter().map(|w| w.clone().into()).collect())
 			} else {
 				None
@@ -95,13 +95,13 @@ impl GetInfo<InputWitnessInfo> for TxInWitness {
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct InputScriptInfo {
-	pub hex: Option<::HexBytes>,
+	pub hex: Option<HexBytes>,
 	pub asm: Option<String>,
 }
 
 pub struct InputScript<'a>(pub &'a Script);
 
-impl<'a> ::GetInfo<InputScriptInfo> for InputScript<'a> {
+impl<'a> GetInfo<InputScriptInfo> for InputScript<'a> {
 	fn get_info(&self, _network: Network) -> InputScriptInfo {
 		InputScriptInfo {
 			hex: Some(self.0.to_bytes().into()),
@@ -137,7 +137,7 @@ impl GetInfo<InputInfo> for TxIn {
 			txid: Some(self.previous_output.txid),
 			vout: Some(self.previous_output.vout),
 			sequence: Some(self.sequence.to_consensus_u32()),
-			script_sig: Some(::GetInfo::get_info(&InputScript(&self.script_sig), network)),
+			script_sig: Some(GetInfo::get_info(&InputScript(&self.script_sig), network)),
 
 			is_pegin: Some(self.is_pegin),
 			has_issuance: Some(self.has_issuance()),
@@ -172,7 +172,7 @@ impl<'tx> GetInfo<PegoutDataInfo> for PegoutData<'tx> {
 			asset: self.asset.get_info(network),
 			genesis_hash: self.genesis_hash,
 			script_pub_key: hal::GetInfo::get_info(&hal::tx::OutputScript(&self.script_pubkey), BTCNET),
-			extra_data: self.extra_data.iter().map(|w| w.clone().into()).collect(),
+			extra_data: self.extra_data.iter().map(|w| HexBytes::from(*w)).collect(),
 		}
 	}
 }
@@ -194,7 +194,7 @@ impl GetInfo<OutputWitnessInfo> for TxOutWitness {
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct OutputScriptInfo {
-	pub hex: Option<::HexBytes>,
+	pub hex: Option<HexBytes>,
 	pub asm: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none", rename = "type")]
 	pub type_: Option<String>,
@@ -204,7 +204,7 @@ pub struct OutputScriptInfo {
 
 pub struct OutputScript<'a>(pub &'a Script);
 
-impl<'a> ::GetInfo<OutputScriptInfo> for OutputScript<'a> {
+impl<'a> GetInfo<OutputScriptInfo> for OutputScript<'a> {
 	fn get_info(&self, network: Network) -> OutputScriptInfo {
 		OutputScriptInfo {
 			hex: Some(self.0.to_bytes().into()),
@@ -227,7 +227,7 @@ impl<'a> ::GetInfo<OutputScriptInfo> for OutputScript<'a> {
 				}
 				.to_owned(),
 			),
-			address: Address::from_script(&self.0, None, network.address_params()),
+			address: Address::from_script(self.0, None, network.address_params()),
 		}
 	}
 }
@@ -252,20 +252,14 @@ impl GetInfo<OutputInfo> for TxOut {
 		let is_fee = {
 			// An output is fee if both the asset and the value are explicit
 			// and if the output script is empty.
-			let exp_ass = match self.asset {
-				confidential::Asset::Explicit(_) => true,
-				_ => false,
-			};
-			let exp_val = match self.value {
-				confidential::Value::Explicit(_) => true,
-				_ => false,
-			};
+			let exp_ass = matches!(self.asset, confidential::Asset::Explicit(_));
+			let exp_val = matches!(self.value, confidential::Value::Explicit(_));
 
-			exp_ass && exp_val && self.script_pubkey.len() == 0
+			exp_ass && exp_val && self.script_pubkey.is_empty()
 		};
 
 		OutputInfo {
-			script_pub_key: Some(::GetInfo::get_info(&OutputScript(&self.script_pubkey), network)),
+			script_pub_key: Some(GetInfo::get_info(&OutputScript(&self.script_pubkey), network)),
 			asset: Some(self.asset.get_info(network)),
 			value: Some(self.value.get_info(network)),
 			nonce: Some(self.nonce.get_info(network)),
@@ -285,7 +279,7 @@ pub struct TransactionInfo {
 	pub weight: Option<usize>,
 	pub vsize: Option<usize>,
 	pub version: Option<u32>,
-	pub locktime: Option<u32>,
+	pub locktime: Option<elements::LockTime>,
 	pub inputs: Option<Vec<InputInfo>>,
 	pub outputs: Option<Vec<OutputInfo>>,
 }
@@ -297,10 +291,10 @@ impl GetInfo<TransactionInfo> for Transaction {
 			wtxid: Some(self.wtxid()),
 			hash: Some(self.wtxid()),
 			version: Some(self.version),
-			locktime: Some(self.lock_time.to_u32()),
+			locktime: Some(self.lock_time),
 			size: Some(serialize(self).len()),
-			weight: Some(self.weight() as usize),
-			vsize: Some((self.weight() / 4) as usize),
+			weight: Some(self.weight()),
+			vsize: Some(self.weight() / 4),
 			inputs: Some(self.input.iter().map(|i| i.get_info(network)).collect()),
 			outputs: Some(self.output.iter().map(|o| o.get_info(network)).collect()),
 		}

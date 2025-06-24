@@ -95,7 +95,7 @@ pub fn arg_or_stdin<'a>(matches: &'a clap::ArgMatches<'a>, arg: &str) -> Cow<'a,
 		if input.is_empty() {
 			panic!("no '{}' argument given", arg);
 		}
-		String::from_utf8(input).expect(&format!("invalid utf8 on stdin for '{}'", arg))
+		String::from_utf8(input).unwrap_or_else(|e| panic!("invalid utf8 on stdin for '{}': {}", arg, e))
 			.trim().to_owned().into()
 	}
 }

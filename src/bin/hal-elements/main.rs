@@ -1,14 +1,3 @@
-#[macro_use]
-extern crate log;
-extern crate clap;
-extern crate elements;
-extern crate fern;
-extern crate hex;
-extern crate serde_json;
-
-extern crate hal;
-extern crate hal_elements;
-
 use std::panic;
 use std::process;
 
@@ -55,12 +44,12 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 /// Try execute built-in command. Return false if no command found.
 fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>) -> bool {
 	match matches.subcommand() {
-		("address", Some(ref m)) => cmd::address::execute(&m),
-		("block", Some(ref m)) => cmd::block::execute(&m),
-		("tx", Some(ref m)) => cmd::tx::execute(&m),
+		("address", Some(m)) => cmd::address::execute(m),
+		("block", Some(m)) => cmd::block::execute(m),
+		("tx", Some(m)) => cmd::tx::execute(m),
 		_ => return false,
 	};
-	return true;
+	true
 }
 
 fn main() {
@@ -88,8 +77,8 @@ fn main() {
 	}
 
 	match matches.subcommand() {
-		("elements", Some(ref m)) => {
-			if execute_builtin(&m) {
+		("elements", Some(m)) => {
+			if execute_builtin(m) {
 				// success
 				process::exit(0);
 			} else {

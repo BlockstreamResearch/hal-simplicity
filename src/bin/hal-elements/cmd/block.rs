@@ -3,9 +3,10 @@ use std::io::Write;
 use elements::encode::{deserialize, serialize};
 use elements::{dynafed, Block, BlockExtData, BlockHeader};
 
-use cmd;
-use cmd::tx::create_transaction;
+use crate::cmd;
+use crate::cmd::tx::create_transaction;
 use hal_elements::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
+use log::warn;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("block", "manipulate blocks")
@@ -15,8 +16,8 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 
 pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
 	match matches.subcommand() {
-		("create", Some(ref m)) => exec_create(&m),
-		("decode", Some(ref m)) => exec_decode(&m),
+		("create", Some(m)) => exec_create(m),
+		("decode", Some(m)) => exec_decode(m),
 		(_, _) => unreachable!("clap prints help"),
 	};
 }
@@ -44,28 +45,28 @@ fn create_params(info: ParamsInfo) -> dynafed::Params {
 				.expect("signblock_witness_limit missing in compact params"),
 			elided_root: info.elided_root.expect("elided_root missing in compact params"),
 		},
-		ParamsType::Full => dynafed::Params::Full {
-			signblockscript: info
+		ParamsType::Full => dynafed::Params::Full(dynafed::FullParams::new(
+			info
 				.signblockscript
 				.expect("signblockscript missing in full params")
 				.0
 				.into(),
-			signblock_witness_limit: info
+			info
 				.signblock_witness_limit
 				.expect("signblock_witness_limit missing in full params"),
-			fedpeg_program: info
+			info
 				.fedpeg_program
 				.expect("fedpeg_program missing in full params")
 				.0
 				.into(),
-			fedpegscript: info.fedpeg_script.expect("fedpeg_script missing in full params").0,
-			extension_space: info
+			info.fedpeg_script.expect("fedpeg_script missing in full params").0,
+			info
 				.extension_space
 				.expect("extension space missing in full params")
 				.into_iter()
 				.map(|b| b.0)
 				.collect(),
-		},
+		)),
 	}
 }
 
@@ -144,7 +145,7 @@ fn exec_decode<'a>(matches: &clap::ArgMatches<'a>) {
 	if matches.is_present("txids") {
 		let block: Block = deserialize(&raw_tx).expect("invalid block format");
 		let info = BlockInfo {
-			header: ::GetInfo::get_info(&block.header, cmd::network(matches)),
+			header: crate::GetInfo::get_info(&block.header, cmd::network(matches)),
 			txids: Some(block.txdata.iter().map(|t| t.txid()).collect()),
 			transactions: None,
 			raw_transactions: None,
@@ -158,7 +159,7 @@ fn exec_decode<'a>(matches: &clap::ArgMatches<'a>) {
 				block.header
 			}
 		};
-		let info = ::GetInfo::get_info(&header, cmd::network(matches));
+		let info = crate::GetInfo::get_info(&header, cmd::network(matches));
 		cmd::print_output(matches, &info)
 	}
 }
