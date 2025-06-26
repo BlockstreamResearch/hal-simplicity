@@ -2,27 +2,27 @@ use std::convert::TryInto;
 use std::io::Write;
 
 use clap;
-use elements::hashes::Hash;
 use elements::bitcoin;
 use elements::encode::{deserialize, serialize};
-use elements::{
-	confidential, AssetIssuance, OutPoint, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
-	Script,
-};
+use elements::hashes::Hash;
 use elements::secp256k1_zkp::{
 	Generator, PedersenCommitment, PublicKey, RangeProof, SurjectionProof, Tweak,
+};
+use elements::{
+	confidential, AssetIssuance, OutPoint, Script, Transaction, TxIn, TxInWitness, TxOut,
+	TxOutWitness,
 };
 use log::warn;
 
 use crate::cmd;
-use hal_elements::Network;
-use hal_elements::confidential::{
+use hal_simplicity::confidential::{
 	ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialType, ConfidentialValueInfo,
 };
-use hal_elements::tx::{
-	AssetIssuanceInfo, InputInfo, InputWitnessInfo, OutputInfo, OutputWitnessInfo, PeginDataInfo,
-	PegoutDataInfo, TransactionInfo, InputScriptInfo, OutputScriptInfo,
+use hal_simplicity::tx::{
+	AssetIssuanceInfo, InputInfo, InputScriptInfo, InputWitnessInfo, OutputInfo, OutputScriptInfo,
+	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
+use hal_simplicity::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("tx", "manipulate transactions")
@@ -95,10 +95,12 @@ fn create_confidential_value(info: ConfidentialValueInfo) -> confidential::Value
 		),
 		ConfidentialType::Confidential => {
 			let comm = PedersenCommitment::from_slice(
-				&info.commitment
+				&info
+					.commitment
 					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..]
-			).expect("invalid confidential commitment");
+					.0[..],
+			)
+			.expect("invalid confidential commitment");
 			confidential::Value::Confidential(comm)
 		}
 	}
@@ -112,10 +114,12 @@ fn create_confidential_asset(info: ConfidentialAssetInfo) -> confidential::Asset
 		),
 		ConfidentialType::Confidential => {
 			let gen = Generator::from_slice(
-				&info.commitment
+				&info
+					.commitment
 					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..]
-			).expect("invalid confidential commitment");
+					.0[..],
+			)
+			.expect("invalid confidential commitment");
 			confidential::Asset::Confidential(gen)
 		}
 	}
@@ -124,17 +128,18 @@ fn create_confidential_asset(info: ConfidentialAssetInfo) -> confidential::Asset
 fn create_confidential_nonce(info: ConfidentialNonceInfo) -> confidential::Nonce {
 	match info.type_ {
 		ConfidentialType::Null => confidential::Nonce::Null,
-		ConfidentialType::Explicit => confidential::Nonce::Explicit(bytes_32(
-			&info.nonce
-				.expect("Field \"nonce\" is required for asset issuances.")
-				.0[..],
-		).expect("wrong size of \"nonce\" field")),
+		ConfidentialType::Explicit => confidential::Nonce::Explicit(
+			bytes_32(&info.nonce.expect("Field \"nonce\" is required for asset issuances.").0[..])
+				.expect("wrong size of \"nonce\" field"),
+		),
 		ConfidentialType::Confidential => {
 			let pubkey = PublicKey::from_slice(
-				&info.commitment
+				&info
+					.commitment
 					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..]
-			).expect("invalid confidential commitment");
+					.0[..],
+			)
+			.expect("invalid confidential commitment");
 			confidential::Nonce::Confidential(pubkey)
 		}
 	}
@@ -143,15 +148,19 @@ fn create_confidential_nonce(info: ConfidentialNonceInfo) -> confidential::Nonce
 fn create_asset_issuance(info: AssetIssuanceInfo) -> AssetIssuance {
 	AssetIssuance {
 		asset_blinding_nonce: Tweak::from_slice(
-			&info.asset_blinding_nonce
+			&info
+				.asset_blinding_nonce
 				.expect("Field \"asset_blinding_nonce\" is required for asset issuances.")
-				.0[..]
-		).expect("Invalid \"asset_blinding_nonce\"."),
+				.0[..],
+		)
+		.expect("Invalid \"asset_blinding_nonce\"."),
 		asset_entropy: bytes_32(
-			&info.asset_entropy
+			&info
+				.asset_entropy
 				.expect("Field \"asset_entropy\" is required for asset issuances.")
 				.0[..],
-		).expect("Invalid size of \"asset_entropy\"."),
+		)
+		.expect("Invalid size of \"asset_entropy\"."),
 		amount: create_confidential_value(
 			info.amount.expect("Field \"amount\" is required for asset issuances."),
 		),
@@ -206,22 +215,25 @@ fn create_input_witness(
 	pd: Option<PeginDataInfo>,
 	prevout: OutPoint,
 ) -> TxInWitness {
-	let pegin_witness = if let Some(info_wit) = info.as_ref().and_then(|info| info.pegin_witness.as_ref()) {
-		if pd.is_some() {
-			warn!("Field \"pegin_data\" of input is ignored.");
-		}
-		info_wit.iter().map(|h| h.clone().0).collect()
-	} else if let Some(pd) = pd {
-		create_pegin_witness(pd, convert_outpoint_to_btc(prevout))
-	} else {
-		Default::default()
-	};
+	let pegin_witness =
+		if let Some(info_wit) = info.as_ref().and_then(|info| info.pegin_witness.as_ref()) {
+			if pd.is_some() {
+				warn!("Field \"pegin_data\" of input is ignored.");
+			}
+			info_wit.iter().map(|h| h.clone().0).collect()
+		} else if let Some(pd) = pd {
+			create_pegin_witness(pd, convert_outpoint_to_btc(prevout))
+		} else {
+			Default::default()
+		};
 
 	if let Some(wi) = info {
 		TxInWitness {
-			amount_rangeproof: wi.amount_rangeproof
+			amount_rangeproof: wi
+				.amount_rangeproof
 				.map(|b| Box::new(RangeProof::from_slice(&b.0).expect("invalid rangeproof"))),
-			inflation_keys_rangeproof: wi.inflation_keys_rangeproof
+			inflation_keys_rangeproof: wi
+				.inflation_keys_rangeproof
 				.map(|b| Box::new(RangeProof::from_slice(&b.0).expect("invalid rangeproof"))),
 			script_witness: match wi.script_witness {
 				Some(ref w) => w.iter().map(|h| h.clone().0).collect(),
@@ -245,7 +257,9 @@ fn create_input(input: InputInfo) -> TxIn {
 	TxIn {
 		previous_output: prevout,
 		script_sig: input.script_sig.map(create_script_sig).unwrap_or_default(),
-		sequence: elements::Sequence::from_height(input.sequence.unwrap_or_default().try_into().unwrap()),
+		sequence: elements::Sequence::from_height(
+			input.sequence.unwrap_or_default().try_into().unwrap(),
+		),
 		is_pegin,
 		asset_issuance: if has_issuance {
 			input.asset_issuance.map(create_asset_issuance).unwrap_or_default()
@@ -327,15 +341,13 @@ fn create_output_witness(w: OutputWitnessInfo) -> TxOutWitness {
 		surjection_proof: w.surjection_proof.map(|b| {
 			Box::new(SurjectionProof::from_slice(&b.0[..]).expect("invalid surjection proof"))
 		}),
-		rangeproof: w.rangeproof.map(|b| {
-			Box::new(RangeProof::from_slice(&b.0[..]).expect("invalid rangeproof"))
-		}),
+		rangeproof: w
+			.rangeproof
+			.map(|b| Box::new(RangeProof::from_slice(&b.0[..]).expect("invalid rangeproof"))),
 	}
 }
 
-fn create_script_pubkey_from_pegout_data(
-	pd: PegoutDataInfo,
-) -> Script {
+fn create_script_pubkey_from_pegout_data(pd: PegoutDataInfo) -> Script {
 	let mut builder = elements::script::Builder::new()
 		.push_opcode(elements::opcodes::all::OP_RETURN)
 		.push_slice(&pd.genesis_hash.to_byte_array())

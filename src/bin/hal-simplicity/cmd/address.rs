@@ -1,7 +1,7 @@
+use clap;
+use elements::bitcoin::{secp256k1, PublicKey};
 use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
-use elements::bitcoin::{secp256k1, PublicKey};
-use clap;
 
 use crate::cmd;
 
@@ -40,12 +40,12 @@ fn exec_create<'a>(matches: &clap::ArgMatches<'a>) {
 
 	let created = if let Some(pubkey_hex) = matches.value_of("pubkey") {
 		let pubkey: PublicKey = pubkey_hex.parse().expect("invalid pubkey");
-		hal_elements::address::Addresses::from_pubkey(&pubkey, blinder, network)
+		hal_simplicity::address::Addresses::from_pubkey(&pubkey, blinder, network)
 	} else if let Some(script_hex) = matches.value_of("script") {
 		let script_bytes = hex::decode(script_hex).expect("invalid script hex");
 		let script = script_bytes.into();
 
-		hal_elements::address::Addresses::from_script(&script, blinder, network)
+		hal_simplicity::address::Addresses::from_script(&script, blinder, network)
 	} else {
 		panic!("Can't create addresses without a pubkey");
 	};
@@ -63,7 +63,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 	let address: Address = address_str.parse().expect("invalid address format");
 	let script_pk = address.script_pubkey();
 
-	let mut info = hal_elements::address::AddressInfo {
+	let mut info = hal_simplicity::address::AddressInfo {
 		network: Network::from_params(address.params).expect("addresses always have params"),
 		script_pub_key: hal::tx::OutputScriptInfo {
 			hex: Some(script_pk.to_bytes().into()),
@@ -109,7 +109,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 			if version == 0 {
 				if program.len() == 20 {
 					info.type_ = Some("p2wpkh".to_owned());
-					info.witness_pubkey_hash = 
+					info.witness_pubkey_hash =
 						Some(WPubkeyHash::from_slice(&program).expect("size 20"));
 				} else if program.len() == 32 {
 					info.type_ = Some("p2wsh".to_owned());

@@ -1,22 +1,22 @@
 [package]
-name = "hal-elements"
+name = "hal-simplicity"
 version = "0.2.1"
 edition = "2021"
-authors = ["Steven Roose <steven@stevenroose.org>"]
+authors = ["Steven Roose <steven@stevenroose.org>", "Andrew Poelstra <apoelstra@blockstream.com>"]
 license = "CC0-1.0"
-homepage = "https://github.com/stevenroose/hal-elements/"
-repository = "https://github.com/stevenroose/hal-elements/"
-description = "hal-elements: an Elements extension of hal"
-keywords = [ "crypto", "bitcoin", "elements", "liquid" ]
+homepage = "https://github.com/BlockstreamResearch/hal-simplicity/"
+repository = "https://github.com/BlockstreamResearch/hal-simplicity/"
+description = "hal-simplicity: a Simplicity extension of hal"
+keywords = [ "crypto", "bitcoin", "elements", "liquid", "simplicity" ]
 readme = "README.md"
 
 [lib]
-name = "hal_elements"
+name = "hal_simplicity"
 path = "src/lib.rs"
 
 [[bin]]
-name = "hal-elements"
-path = "src/bin/hal-elements/main.rs"
+name = "hal-simplicity"
+path = "src/bin/hal-simplicity/main.rs"
 
 
 [dependencies]
