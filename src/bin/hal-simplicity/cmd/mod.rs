@@ -1,5 +1,6 @@
 pub mod address;
 pub mod block;
+pub mod keypair;
 pub mod tx;
 
 use std::borrow::Cow;
@@ -10,7 +11,7 @@ use hal_simplicity::Network;
 
 /// Build a list of all built-in subcommands.
 pub fn subcommands<'a>() -> Vec<clap::App<'a, 'a>> {
-	vec![address::subcommand(), block::subcommand(), tx::subcommand()]
+	vec![address::subcommand(), block::subcommand(), keypair::subcommand(), tx::subcommand()]
 }
 
 /// Construct a new command option.

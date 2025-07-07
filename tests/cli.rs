@@ -125,6 +125,7 @@ FLAGS:
 SUBCOMMANDS:
     address    work with addresses
     block      manipulate blocks
+    keypair    manipulate private and public keys
     tx         manipulate transactions
 ";
 	assert_cmd(&["simplicity"], "", expected_help);
@@ -1020,6 +1021,49 @@ ARGS:
 		),
 		"",
 	);
+}
+
+#[test]
+fn cli_simplicity_keypair() {
+	let expected_help = "\
+hal-simplicity-keypair 
+manipulate private and public keys
+
+USAGE:
+    hal simplicity keypair [FLAGS] <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -v, --verbose    print verbose logging output to stderr
+
+SUBCOMMANDS:
+    generate    generate a random private/public keypair
+";
+	assert_cmd(&["simplicity", "keypair"], "", expected_help);
+	// -h does NOT mean --help. It is just ignored entirely.
+	//assert_cmd(&["simplicity", "keypair", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "keypair", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "keypair", "--help", "xyz"], expected_help, "");
+}
+
+#[test]
+fn cli_simplicity_keypair_generate() {
+	let expected_help = "\
+hal-simplicity-keypair-generate 
+generate a random private/public keypair
+
+USAGE:
+    hal simplicity keypair generate [FLAGS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -v, --verbose    print verbose logging output to stderr
+    -y, --yaml       print output in YAML instead of JSON
+";
+	assert_cmd(&["simplicity", "keypair", "generate", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "keypair", "generate", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "keypair", "generate", "--help", "xyz"], expected_help, "");
+	// Will test the output of generate in the next commit; need some more infrastructure
 }
 
 #[test]
