@@ -23,7 +23,7 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 		.bin_name("hal")
 		.version(clap::crate_version!())
 		.subcommand(
-			cmd::subcommand_group("elements", "Elements extensions for hal")
+			cmd::subcommand_group("simplicity", "Simplicity extensions for hal")
 				.about("hal-simplicity -- a Simplicity extension of hal")
 				.setting(clap::AppSettings::GlobalVersion)
 				.setting(clap::AppSettings::VersionlessSubcommands)
@@ -77,7 +77,7 @@ fn main() {
 	}
 
 	match matches.subcommand() {
-		("elements", Some(m)) => {
+		("simplicity", Some(m)) => {
 			if execute_builtin(m) {
 				// success
 				process::exit(0);
