@@ -47,6 +47,7 @@ fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>) -> bool {
 		("address", Some(m)) => cmd::address::execute(m),
 		("block", Some(m)) => cmd::block::execute(m),
 		("keypair", Some(m)) => cmd::keypair::execute(m),
+		("simplicity", Some(m)) => cmd::simplicity::execute(m),
 		("tx", Some(m)) => cmd::tx::execute(m),
 		_ => return false,
 	};

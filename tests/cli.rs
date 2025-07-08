@@ -157,10 +157,11 @@ FLAGS:
     -v, --verbose    print verbose logging output to stderr
 
 SUBCOMMANDS:
-    address    work with addresses
-    block      manipulate blocks
-    keypair    manipulate private and public keys
-    tx         manipulate transactions
+    address       work with addresses
+    block         manipulate blocks
+    keypair       manipulate private and public keys
+    simplicity    manipulate Simplicity programs
+    tx            manipulate transactions
 ";
 	assert_cmd(&["simplicity"], "", expected_help);
 	assert_cmd(&["simplicity", "-h"], expected_help, "");
@@ -1118,6 +1119,71 @@ FLAGS:
 			serde_yaml::from_slice::<Object>(s)
 		});
 	}
+}
+
+#[test]
+fn cli_simplicity_simplicity() {
+	let expected_help = "\
+hal-simplicity-simplicity 
+manipulate Simplicity programs
+
+USAGE:
+    hal simplicity simplicity [FLAGS] <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -v, --verbose    print verbose logging output to stderr
+
+SUBCOMMANDS:
+    info    Parse a base64-encoded Simplicity program and decode it
+";
+	assert_cmd(&["simplicity", "simplicity"], "", expected_help);
+	assert_cmd(&["simplicity", "simplicity", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "simplicity", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "simplicity", "--help", "xyz"], expected_help, "");
+}
+
+#[test]
+fn cli_simplicity_simplicity_info() {
+	let expected_help = "\
+hal-simplicity-simplicity-info 
+Parse a base64-encoded Simplicity program and decode it
+
+USAGE:
+    hal simplicity simplicity info [FLAGS] <program> [witness]
+
+FLAGS:
+    -r, --elementsregtest    run in elementsregtest mode
+    -h, --help               Prints help information
+        --liquid             run in liquid mode
+    -v, --verbose            print verbose logging output to stderr
+    -y, --yaml               print output in YAML instead of JSON
+
+ARGS:
+    <program>    a Simplicity program in base64
+    <witness>    a hex encoding of all the witness data for the program
+";
+	// For the transaction/block create / decode functions we can take input by
+	// stdin as an undocumented JSON blob. FIXME we probably want to do this
+	// here (and in the other simplicity commands) to allow for very large
+	// programs and witnesses. But I'd rather do it properly (i.e. with some
+	// docs and help) so not gonna do it now.
+	assert_cmd(
+		&["simplicity", "simplicity", "info"],
+		"",
+		"\
+error: The following required arguments were not provided:
+    <program>
+
+USAGE:
+    hal simplicity simplicity info [FLAGS] <program> [witness]
+
+For more information try --help
+",
+	);
+	assert_cmd(&["simplicity", "simplicity", "info", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "simplicity", "info", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "simplicity", "info", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
