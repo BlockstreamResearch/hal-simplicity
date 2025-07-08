@@ -13,6 +13,40 @@ fn self_command() -> Command {
 	Command::new(Path::new(self_command_str()))
 }
 
+/// Asserts that the stderr of a command is empty, and that its stdout can be parsed by the
+/// given [`deserialize_fn`].
+///
+/// Typical values of `deserialize_fn` are `serde_json::from_slice` and `serde_yaml::from_slice`.
+#[track_caller]
+fn assert_deserialize_cmd<T, E>(args: &[&str], deserialize_fn: fn(&[u8]) -> Result<T, E>) -> T
+where
+	T: for<'de> serde::de::Deserialize<'de>,
+	E: core::fmt::Display,
+{
+	let args_string = || {
+		let v =
+			args.iter().map(|s| s.replace("\\", "\\\\").replace("\"", "\\\"")).collect::<Vec<_>>();
+		v.join(" ")
+	};
+
+	let output = self_command().args(args.iter()).output().unwrap();
+	if !output.stderr.is_empty() {
+		eprintln!("Command: {} {}", self_command_str(), args_string());
+		eprintln!(
+			"Stderr:\n-----\n{}\n-----\n(stderr should have been empty.)",
+			String::from_utf8_lossy(&output.stderr),
+		);
+	}
+
+	match deserialize_fn(&output.stdout) {
+		Ok(decode) => decode,
+		Err(e) => {
+			eprintln!("Stdout:\n-----\n{}\n-----", String::from_utf8_lossy(&output.stdout),);
+			panic!("Attempted to parse stdout, but got error: {}", e);
+		}
+	}
+}
+
 #[track_caller]
 fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: impl AsRef<str>) {
 	let expected_stdout = expected_stdout.as_ref();
@@ -1063,7 +1097,27 @@ FLAGS:
 	assert_cmd(&["simplicity", "keypair", "generate", "-h"], expected_help, "");
 	assert_cmd(&["simplicity", "keypair", "generate", "--help"], expected_help, "");
 	assert_cmd(&["simplicity", "keypair", "generate", "--help", "xyz"], expected_help, "");
-	// Will test the output of generate in the next commit; need some more infrastructure
+
+	// New block to avoid warnings about `struct`s being defined not at the beginning of block
+	{
+		use elements::bitcoin::secp256k1;
+
+		#[allow(dead_code)]
+		#[derive(serde::Deserialize)]
+		struct Object {
+			secret: secp256k1::SecretKey,
+			x_only: secp256k1::XOnlyPublicKey,
+			parity: usize, // secp256k1::Parity does not seem to round-trip through serde_json
+		}
+
+		// Closure needed for borrowck reasons
+		assert_deserialize_cmd(&["simplicity", "keypair", "generate"], |s| {
+			serde_json::from_slice::<Object>(s)
+		});
+		assert_deserialize_cmd(&["simplicity", "keypair", "generate"], |s| {
+			serde_yaml::from_slice::<Object>(s)
+		});
+	}
 }
 
 #[test]
