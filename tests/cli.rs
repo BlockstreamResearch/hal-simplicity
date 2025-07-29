@@ -85,7 +85,7 @@ fn cli_empty() {
 		&[],
 		"",
 		"\
-hal-simplicity 0.2.1
+hal-simplicity 0.1.0
 
 USAGE:
     hal [FLAGS] <SUBCOMMAND>
@@ -105,7 +105,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_help() {
 	let expected_help = "\
-hal-simplicity 0.2.1
+hal-simplicity 0.1.0
 
 USAGE:
     hal [FLAGS] <SUBCOMMAND>

@@ -1,6 +1,6 @@
 [package]
 name = "hal-simplicity"
-version = "0.2.1"
+version = "0.1.0"
 edition = "2021"
 authors = ["Steven Roose <steven@stevenroose.org>", "Andrew Poelstra <apoelstra@blockstream.com>"]
 license = "CC0-1.0"
