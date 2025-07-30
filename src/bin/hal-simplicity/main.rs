@@ -23,7 +23,7 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 		.bin_name("hal")
 		.version(clap::crate_version!())
 		.subcommand(
-			cmd::subcommand_group("elements", "Elements extensions for hal")
+			cmd::subcommand_group("simplicity", "Simplicity extensions for hal")
 				.about("hal-simplicity -- a Simplicity extension of hal")
 				.setting(clap::AppSettings::GlobalVersion)
 				.setting(clap::AppSettings::VersionlessSubcommands)
@@ -46,6 +46,8 @@ fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>) -> bool {
 	match matches.subcommand() {
 		("address", Some(m)) => cmd::address::execute(m),
 		("block", Some(m)) => cmd::block::execute(m),
+		("keypair", Some(m)) => cmd::keypair::execute(m),
+		("simplicity", Some(m)) => cmd::simplicity::execute(m),
 		("tx", Some(m)) => cmd::tx::execute(m),
 		_ => return false,
 	};
@@ -77,7 +79,7 @@ fn main() {
 	}
 
 	match matches.subcommand() {
-		("elements", Some(m)) => {
+		("simplicity", Some(m)) => {
 			if execute_builtin(m) {
 				// success
 				process::exit(0);
