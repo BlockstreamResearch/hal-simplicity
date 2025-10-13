@@ -5,6 +5,13 @@ mod info;
 
 use crate::cmd;
 
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Error {
+	error: String,
+}
+
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("simplicity", "manipulate Simplicity programs")
 		.subcommand(self::info::cmd())
