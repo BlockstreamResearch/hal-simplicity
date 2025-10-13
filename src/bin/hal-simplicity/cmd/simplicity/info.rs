@@ -3,9 +3,10 @@
 
 use crate::cmd;
 
+use super::{Error, ErrorExt as _};
+
 use hal_simplicity::hal_simplicity::{elements_address, Program};
 use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
-use simplicity::ParseError;
 
 use serde::Serialize;
 
@@ -50,20 +51,16 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(program, witness) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(
-			matches,
-			&super::Error {
-				error: e.to_string(),
-			},
-		),
+		Err(e) => cmd::print_output(matches, &e),
 	}
 }
 
-fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, ParseError> {
+fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, Error> {
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let program = Program::<jet::Elements>::from_str(program, witness)?;
+	let program =
+		Program::<jet::Elements>::from_str(program, witness).result_context("parsing program")?;
 
 	let redeem_info = program.redeem_node().map(|node| {
 		let disp = node.display();

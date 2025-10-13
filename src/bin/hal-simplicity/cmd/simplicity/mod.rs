@@ -9,7 +9,21 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct Error {
+	context: &'static str,
 	error: String,
+}
+
+trait ErrorExt<T> {
+	fn result_context(self, context: &'static str) -> Result<T, Error>;
+}
+
+impl<T, E: core::fmt::Display> ErrorExt<T> for Result<T, E> {
+	fn result_context(self, context: &'static str) -> Result<T, Error> {
+		self.map_err(|e| Error {
+			context,
+			error: e.to_string(),
+		})
+	}
 }
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
