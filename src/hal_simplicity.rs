@@ -31,8 +31,26 @@ impl<J: Jet> Program<J> {
 	/// common output mode from rust-simplicity and what you will probably get when
 	/// decoding data straight off the blockchain.
 	pub fn from_str(prog_b64: &str, wit_hex: Option<&str>) -> Result<Self, ParseError> {
+		// Attempt to decode a program from base64, and failing that, try hex.
+		let commit_prog = match CommitNode::from_str(prog_b64) {
+			Ok(prog) => prog,
+			Err(e) => {
+				use simplicity::hex::FromHex as _;
+				if let Ok(bytes) = Vec::from_hex(prog_b64) {
+					let iter = simplicity::BitIter::new(bytes.into_iter());
+					if let Ok(node) = CommitNode::decode(iter) {
+						node
+					} else {
+						return Err(e);
+					}
+				} else {
+					return Err(e);
+				}
+			}
+		};
+
 		Ok(Self {
-			commit_prog: CommitNode::from_str(prog_b64)?,
+			commit_prog,
 			redeem_prog: wit_hex.map(|hex| RedeemNode::from_str(prog_b64, hex)).transpose()?,
 		})
 	}
