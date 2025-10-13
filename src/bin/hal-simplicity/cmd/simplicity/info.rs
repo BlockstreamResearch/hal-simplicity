@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::cmd;
+
 use hal_simplicity::hal_simplicity::{elements_address, Program};
 use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
+use simplicity::ParseError;
 
 use serde::Serialize;
 
@@ -46,11 +48,22 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness");
 
+	match exec_inner(program, witness) {
+		Ok(info) => cmd::print_output(matches, &info),
+		Err(e) => cmd::print_output(
+			matches,
+			&super::Error {
+				error: e.to_string(),
+			},
+		),
+	}
+}
+
+fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, ParseError> {
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let program =
-		Program::<jet::Elements>::from_str(program, witness).expect("invalid program hex");
+	let program = Program::<jet::Elements>::from_str(program, witness)?;
 
 	let redeem_info = program.redeem_node().map(|node| {
 		let disp = node.display();
@@ -63,7 +76,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		x // binding needed for truly stupid borrowck reasons
 	});
 
-	let info = ProgramInfo {
+	Ok(ProgramInfo {
 		jets: "core",
 		commit_base64: program.commit_prog().to_string(),
 		// FIXME this is, in general, exponential in size. Need to limit it somehow; probably need upstream support
@@ -79,6 +92,5 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		.to_string(),
 		is_redeem: redeem_info.is_some(),
 		redeem_info,
-	};
-	cmd::print_output(matches, &info)
+	})
 }
