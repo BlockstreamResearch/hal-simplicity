@@ -35,7 +35,7 @@ hal-simplicity simplicity keypair generate
 ```
 
 ### hal-simplicity simplicity simplicity info
-Parse a base64-encoded Simplicity program and decode it
+Parse a base64-encoded Simpliicity program and decode it
 ```bash
 hal-simplicity simplicity simplcitiy info <base64-program>
 ```
