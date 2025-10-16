@@ -1135,7 +1135,8 @@ FLAGS:
     -v, --verbose    print verbose logging output to stderr
 
 SUBCOMMANDS:
-    info    Parse a base64-encoded Simplicity program and decode it
+    info       Parse a base64-encoded Simplicity program and decode it
+    sighash    Compute signature hashes or signatures for use with Simplicity
 ";
 	assert_cmd(&["simplicity", "simplicity"], "", expected_help);
 	assert_cmd(&["simplicity", "simplicity", "-h"], expected_help, "");

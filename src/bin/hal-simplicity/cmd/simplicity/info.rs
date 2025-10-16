@@ -3,8 +3,11 @@
 
 use crate::cmd;
 
+use super::{Error, ErrorExt as _};
+
 use hal_simplicity::hal_simplicity::{elements_address, Program};
 use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
+
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -30,18 +33,7 @@ struct ProgramInfo {
 	redeem_info: Option<RedeemInfo>,
 }
 
-pub fn subcommand<'a>() -> clap::App<'a, 'a> {
-	cmd::subcommand_group("simplicity", "manipulate Simplicity programs").subcommand(cmd_info())
-}
-
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
-	match matches.subcommand() {
-		("info", Some(m)) => exec_info(m),
-		(_, _) => unreachable!("clap prints help"),
-	};
-}
-
-fn cmd_info<'a>() -> clap::App<'a, 'a> {
+pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("info", "Parse a base64-encoded Simplicity program and decode it")
 		.args(&cmd::opts_networks())
 		.args(&[
@@ -53,15 +45,22 @@ fn cmd_info<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-fn exec_info<'a>(matches: &clap::ArgMatches<'a>) {
+pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness");
 
+	match exec_inner(program, witness) {
+		Ok(info) => cmd::print_output(matches, &info),
+		Err(e) => cmd::print_output(matches, &e),
+	}
+}
+
+fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, Error> {
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
 	let program =
-		Program::<jet::Elements>::from_str(program, witness).expect("invalid program hex");
+		Program::<jet::Elements>::from_str(program, witness).result_context("parsing program")?;
 
 	let redeem_info = program.redeem_node().map(|node| {
 		let disp = node.display();
@@ -74,7 +73,7 @@ fn exec_info<'a>(matches: &clap::ArgMatches<'a>) {
 		x // binding needed for truly stupid borrowck reasons
 	});
 
-	let info = ProgramInfo {
+	Ok(ProgramInfo {
 		jets: "core",
 		commit_base64: program.commit_prog().to_string(),
 		// FIXME this is, in general, exponential in size. Need to limit it somehow; probably need upstream support
@@ -90,6 +89,5 @@ fn exec_info<'a>(matches: &clap::ArgMatches<'a>) {
 		.to_string(),
 		is_redeem: redeem_info.is_some(),
 		redeem_info,
-	};
-	cmd::print_output(matches, &info)
+	})
 }
