@@ -86,7 +86,7 @@ hal-simplicity 0.1.0
 hal-simplicity -- a Simplicity-enabled fork of hal
 
 USAGE:
-    hal [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -116,7 +116,7 @@ fn cli_bad_flag() {
 error: Found argument '-?' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] <SUBCOMMAND>
 
 For more information try --help
 ",
@@ -126,11 +126,11 @@ For more information try --help
 #[test]
 fn cli_address() {
 	let expected_help = "\
-hal-address 0.1.0
+hal-simplicity-address 0.1.0
 work with addresses
 
 USAGE:
-    hal address [FLAGS] <SUBCOMMAND>
+    hal-simplicity address [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -149,11 +149,11 @@ SUBCOMMANDS:
 #[test]
 fn cli_address_create() {
 	let expected_help = "\
-hal-address-create 0.1.0
+hal-simplicity-address-create 0.1.0
 create addresses
 
 USAGE:
-    hal address create [FLAGS] [OPTIONS]
+    hal-simplicity address create [FLAGS] [OPTIONS]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -186,7 +186,7 @@ OPTIONS:
 error: Found argument '' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal address create [FLAGS] [OPTIONS]
+    hal-simplicity address create [FLAGS] [OPTIONS]
 
 For more information try --help
 ",
@@ -405,7 +405,7 @@ For more information try --help
 error: The argument '--pubkey <pubkey>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal address create --pubkey <pubkey>
+    hal-simplicity address create --pubkey <pubkey>
 
 For more information try --help
 ",
@@ -421,7 +421,7 @@ For more information try --help
 error: The argument '--blinder <blinder>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal address create --blinder <blinder>
+    hal-simplicity address create --blinder <blinder>
 
 For more information try --help
 ",
@@ -437,7 +437,7 @@ For more information try --help
 error: The argument '--script <script>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal address create --script <script>
+    hal-simplicity address create --script <script>
 
 For more information try --help
 ",
@@ -587,11 +587,11 @@ For more information try --help
 #[test]
 fn cli_address_inspect() {
 	let expected_help = "\
-hal-address-inspect 0.1.0
+hal-simplicity-address-inspect 0.1.0
 inspect addresses
 
 USAGE:
-    hal address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 FLAGS:
     -h, --help       Prints help information
@@ -611,7 +611,7 @@ ARGS:
     <address>
 
 USAGE:
-    hal address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 For more information try --help
 ",
@@ -726,7 +726,7 @@ pubkey_hash: 6c95622b280be97792ec1b3505700f9e674cf509"#,
 error: Found argument '' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 For more information try --help
 ",
@@ -736,11 +736,11 @@ For more information try --help
 #[test]
 fn cli_block() {
 	let expected_help = "\
-hal-block 0.1.0
+hal-simplicity-block 0.1.0
 manipulate blocks
 
 USAGE:
-    hal block [FLAGS] <SUBCOMMAND>
+    hal-simplicity block [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -759,11 +759,11 @@ SUBCOMMANDS:
 #[test]
 fn cli_block_create() {
 	let expected_help = "\
-hal-block-create 0.1.0
+hal-simplicity-block-create 0.1.0
 create a raw block from JSON
 
 USAGE:
-    hal block create [FLAGS] [block-info]
+    hal-simplicity block create [FLAGS] [block-info]
 
 FLAGS:
     -h, --help          Prints help information
@@ -903,11 +903,11 @@ ARGS:
 #[test]
 fn cli_block_decode() {
 	let expected_help = "\
-hal-block-decode 0.1.0
+hal-simplicity-block-decode 0.1.0
 decode a raw block to JSON
 
 USAGE:
-    hal block decode [FLAGS] [raw-block]
+    hal-simplicity block decode [FLAGS] [raw-block]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -974,11 +974,11 @@ ARGS:
 #[test]
 fn cli_keypair() {
 	let expected_help = "\
-hal-keypair 0.1.0
+hal-simplicity-keypair 0.1.0
 manipulate private and public keys
 
 USAGE:
-    hal keypair [FLAGS] <SUBCOMMAND>
+    hal-simplicity keypair [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -997,11 +997,11 @@ SUBCOMMANDS:
 #[test]
 fn cli_keypair_generate() {
 	let expected_help = "\
-hal-keypair-generate 0.1.0
+hal-simplicity-keypair-generate 0.1.0
 generate a random private/public keypair
 
 USAGE:
-    hal keypair generate [FLAGS]
+    hal-simplicity keypair generate [FLAGS]
 
 FLAGS:
     -h, --help       Prints help information
@@ -1033,11 +1033,11 @@ FLAGS:
 #[test]
 fn cli_simplicity() {
 	let expected_help = "\
-hal-simplicity 0.1.0
+hal-simplicity-simplicity 0.1.0
 manipulate Simplicity programs
 
 USAGE:
-    hal simplicity [FLAGS] <SUBCOMMAND>
+    hal-simplicity simplicity [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -1056,11 +1056,11 @@ SUBCOMMANDS:
 #[test]
 fn cli_simplicity_info() {
 	let expected_help = "\
-hal-simplicity-info 0.1.0
+hal-simplicity-simplicity-info 0.1.0
 Parse a base64-encoded Simplicity program and decode it
 
 USAGE:
-    hal simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] <program> [witness]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -1086,7 +1086,7 @@ error: The following required arguments were not provided:
     <program>
 
 USAGE:
-    hal simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] <program> [witness]
 
 For more information try --help
 ",
@@ -1099,11 +1099,11 @@ For more information try --help
 #[test]
 fn cli_tx() {
 	let expected_help = "\
-hal-tx 0.1.0
+hal-simplicity-tx 0.1.0
 manipulate transactions
 
 USAGE:
-    hal tx [FLAGS] <SUBCOMMAND>
+    hal-simplicity tx [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -1122,11 +1122,11 @@ SUBCOMMANDS:
 #[test]
 fn cli_tx_create() {
 	let expected_help = "\
-hal-tx-create 0.1.0
+hal-simplicity-tx-create 0.1.0
 create a raw transaction from JSON
 
 USAGE:
-    hal tx create [FLAGS] [tx-info]
+    hal-simplicity tx create [FLAGS] [tx-info]
 
 FLAGS:
     -h, --help          Prints help information
@@ -1179,11 +1179,11 @@ ARGS:
 #[test]
 fn cli_tx_decode() {
 	let expected_help = "\
-hal-tx-decode 0.1.0
+hal-simplicity-tx-decode 0.1.0
 decode a raw transaction to JSON
 
 USAGE:
-    hal tx decode [FLAGS] [raw-tx]
+    hal-simplicity tx decode [FLAGS] [raw-tx]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode

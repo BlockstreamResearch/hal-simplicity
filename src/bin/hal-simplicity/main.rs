@@ -20,7 +20,7 @@ fn setup_logger(lvl: log::LevelFilter) {
 /// Create the main app object.
 fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 	clap::App::new("hal-simplicity")
-		.bin_name("hal")
+		.bin_name("hal-simplicity")
 		.version(clap::crate_version!())
 		.about("hal-simplicity -- a Simplicity-enabled fork of hal")
 		.setting(clap::AppSettings::GlobalVersion)
