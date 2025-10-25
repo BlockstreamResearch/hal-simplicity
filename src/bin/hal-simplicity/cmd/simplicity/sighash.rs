@@ -9,12 +9,11 @@ use elements::hashes::Hash;
 use hal_simplicity::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey,
 };
-use hal_simplicity::simplicity::bitcoin::{Amount, Denomination};
 use hal_simplicity::simplicity::elements::hashes::sha256;
 use hal_simplicity::simplicity::elements::hex::FromHex;
 use hal_simplicity::simplicity::elements::taproot::ControlBlock;
-use hal_simplicity::simplicity::elements::{self, confidential, Transaction};
-use hal_simplicity::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
+use hal_simplicity::simplicity::elements::{self, Transaction};
+use hal_simplicity::simplicity::jet::elements::ElementsEnv;
 use hal_simplicity::simplicity::Cmr;
 
 use serde::Serialize;
@@ -24,50 +23,6 @@ struct SighashInfo {
 	sighash: sha256::Hash,
 	signature: Option<schnorr::Signature>,
 	valid_signature: Option<bool>,
-}
-
-fn parse_elements_utxo(s: &str) -> Result<ElementsUtxo, Error> {
-	let parts: Vec<&str> = s.split(':').collect();
-	if parts.len() != 3 {
-		return Err(Error {
-			context: "parsing input UTXO",
-			error: "expected format <scriptPubKey>:<asset>:<value>".to_string(),
-		});
-	}
-	// Parse scriptPubKey
-	let script_pubkey: elements::Script =
-		parts[0].parse().result_context("parsing scriptPubKey hex")?;
-
-	// Parse asset - try as explicit AssetId first, then as confidential commitment
-	let asset = if parts[1].len() == 64 {
-		// 32 bytes = explicit AssetId
-		let asset_id: elements::AssetId = parts[1].parse().result_context("parsing asset hex")?;
-		confidential::Asset::Explicit(asset_id)
-	} else {
-		// Parse anything except 32 bytes as a confidential commitment (which must be 33 bytes)
-		let commitment_bytes =
-			Vec::from_hex(parts[1]).result_context("parsing asset commitment hex")?;
-		elements::confidential::Asset::from_commitment(&commitment_bytes)
-			.result_context("decoding asset commitment")?
-	};
-
-	// Parse value - try as BTC decimal first, then as confidential commitment
-	let value = if let Ok(btc_amount) = Amount::from_str_in(parts[2], Denomination::Bitcoin) {
-		// Explicit value in BTC
-		elements::confidential::Value::Explicit(btc_amount.to_sat())
-	} else {
-		// 33 bytes = confidential commitment
-		let commitment_bytes =
-			Vec::from_hex(parts[2]).result_context("parsing value commitment hex")?;
-		elements::confidential::Value::from_commitment(&commitment_bytes)
-			.result_context("decoding value commitment")?
-	};
-
-	Ok(ElementsUtxo {
-		script_pubkey,
-		asset,
-		value,
-	})
 }
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
@@ -162,7 +117,7 @@ fn exec_inner(
 
 	let input_utxos = input_utxos
 		.iter()
-		.map(|utxo_str| parse_elements_utxo(utxo_str))
+		.map(|utxo_str| super::parse_elements_utxo(utxo_str))
 		.collect::<Result<Vec<_>, Error>>()?;
 	assert_eq!(input_utxos.len(), tx.input.len());
 
