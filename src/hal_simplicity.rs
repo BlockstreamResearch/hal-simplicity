@@ -31,28 +31,26 @@ impl<J: Jet> Program<J> {
 	/// The canonical representation of Simplicity programs is base64, but hex is a
 	/// common output mode from rust-simplicity and what you will probably get when
 	/// decoding data straight off the blockchain.
+	///
+	/// The canonical representation of witnesses is hex, but old versions of simc
+	/// (e.g. every released version, and master, as of 2025-10-25) output base64.
 	pub fn from_str(prog_b64: &str, wit_hex: Option<&str>) -> Result<Self, ParseError> {
-		// Attempt to decode a program from base64, and failing that, try hex.
-		let commit_prog = match CommitNode::from_str(prog_b64) {
-			Ok(prog) => prog,
-			Err(e) => {
-				use simplicity::hex::FromHex as _;
-				if let Ok(bytes) = Vec::from_hex(prog_b64) {
-					let iter = simplicity::BitIter::new(bytes.into_iter());
-					if let Ok(node) = CommitNode::decode(iter) {
-						node
-					} else {
-						return Err(e);
-					}
-				} else {
-					return Err(e);
-				}
-			}
-		};
+		let prog_bytes = crate::hex_or_base64(prog_b64).map_err(ParseError::Base64)?;
+		let iter = BitIter::new(prog_bytes.iter().copied());
+		let commit_prog = CommitNode::decode(iter).map_err(ParseError::Decode)?;
+
+		let redeem_prog = wit_hex
+			.map(|wit_hex| {
+				let wit_bytes = crate::hex_or_base64(wit_hex).map_err(ParseError::Base64)?;
+				let prog_iter = BitIter::new(prog_bytes.into_iter());
+				let wit_iter = BitIter::new(wit_bytes.into_iter());
+				RedeemNode::decode(prog_iter, wit_iter).map_err(ParseError::Decode)
+			})
+			.transpose()?;
 
 		Ok(Self {
 			commit_prog,
-			redeem_prog: wit_hex.map(|hex| RedeemNode::from_str(prog_b64, hex)).transpose()?,
+			redeem_prog,
 		})
 	}
 
