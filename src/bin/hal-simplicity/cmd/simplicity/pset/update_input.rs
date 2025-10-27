@@ -7,16 +7,10 @@ use core::str::FromStr;
 use std::collections::BTreeMap;
 
 use super::super::{Error, ErrorExt as _};
+use super::UpdatedPset;
 
 use elements::schnorr::XOnlyPublicKey;
 use hal_simplicity::hal_simplicity::taproot_spend_info;
-use serde::Serialize;
-
-#[derive(Serialize)]
-struct UpdatedPset {
-	pset: String,
-	updated_values: Vec<&'static str>,
-}
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("update-input", "Attach UTXO data to a PSET input")
