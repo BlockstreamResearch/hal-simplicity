@@ -80,35 +80,13 @@ fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: 
 }
 
 #[test]
-fn cli_empty() {
-	assert_cmd(
-		&[],
-		"",
-		"\
-hal-simplicity 0.1.0
-
-USAGE:
-    hal [FLAGS] <SUBCOMMAND>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-    -v, --verbose    print verbose logging output to stderr
-
-SUBCOMMANDS:
-    help          Prints this message or the help of the given subcommand(s)
-    simplicity    hal-simplicity -- a Simplicity extension of hal
-",
-	);
-}
-
-#[test]
 fn cli_help() {
 	let expected_help = "\
 hal-simplicity 0.1.0
+hal-simplicity -- a Simplicity-enabled fork of hal
 
 USAGE:
-    hal [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -116,9 +94,14 @@ FLAGS:
     -v, --verbose    print verbose logging output to stderr
 
 SUBCOMMANDS:
+    address       work with addresses
+    block         manipulate blocks
     help          Prints this message or the help of the given subcommand(s)
-    simplicity    hal-simplicity -- a Simplicity extension of hal
+    keypair       manipulate private and public keys
+    simplicity    manipulate Simplicity programs
+    tx            manipulate transactions
 ";
+	assert_cmd(&[], "", expected_help); // note on stdout, not stderr
 	assert_cmd(&["help"], expected_help, "");
 	assert_cmd(&["--help"], expected_help, "");
 	assert_cmd(&["-h"], expected_help, "");
@@ -133,7 +116,7 @@ fn cli_bad_flag() {
 error: Found argument '-?' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] <SUBCOMMAND>
 
 For more information try --help
 ",
@@ -141,43 +124,13 @@ For more information try --help
 }
 
 #[test]
-fn cli_simplicity() {
-	// FIXME where does the initial hal-simplicity come from? Also there is a trailing
-	//  space after it. (Same with every single command invocation.)
+fn cli_address() {
 	let expected_help = "\
-hal-simplicity 
-hal-simplicity -- a Simplicity extension of hal
-
-USAGE:
-    hal simplicity [FLAGS] <SUBCOMMAND>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-    -v, --verbose    print verbose logging output to stderr
-
-SUBCOMMANDS:
-    address       work with addresses
-    block         manipulate blocks
-    keypair       manipulate private and public keys
-    simplicity    manipulate Simplicity programs
-    tx            manipulate transactions
-";
-	assert_cmd(&["simplicity"], "", expected_help);
-	assert_cmd(&["simplicity", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "--help", "xyz"], expected_help, "");
-}
-
-#[test]
-fn cli_simplicity_address() {
-	// FIXME where does the initial hal-simplicity-address come from?
-	let expected_help = "\
-hal-simplicity-address 
+hal-simplicity-address 0.1.0
 work with addresses
 
 USAGE:
-    hal simplicity address [FLAGS] <SUBCOMMAND>
+    hal-simplicity address [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -187,20 +140,20 @@ SUBCOMMANDS:
     create     create addresses
     inspect    inspect addresses
 ";
-	assert_cmd(&["simplicity", "address"], "", expected_help);
-	assert_cmd(&["simplicity", "address", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["address"], "", expected_help);
+	assert_cmd(&["address", "-h"], expected_help, "");
+	assert_cmd(&["address", "--help"], expected_help, "");
+	assert_cmd(&["address", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_address_create() {
+fn cli_address_create() {
 	let expected_help = "\
-hal-simplicity-address-create 
+hal-simplicity-address-create 0.1.0
 create addresses
 
 USAGE:
-    hal simplicity address create [FLAGS] [OPTIONS]
+    hal-simplicity address create [FLAGS] [OPTIONS]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -218,36 +171,35 @@ OPTIONS:
 	// FIXME yes, you can, with a script rather than pubkey. Also the script is not
 	// length-prefixed, which is a little surprising and should be documented
 	assert_cmd(
-		&["simplicity", "address", "create"],
+		&["address", "create"],
 		"Execution failed: Can't create addresses without a pubkey\n",
 		"",
 	);
-	assert_cmd(&["simplicity", "address", "create", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "create", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "create", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["address", "create", "-h"], expected_help, "");
+	assert_cmd(&["address", "create", "--help"], expected_help, "");
+	assert_cmd(&["address", "create", "--help", "xyz"], expected_help, "");
 	// Bad public key
 	assert_cmd(
-		&["simplicity", "address", "create", ""],
+		&["address", "create", ""],
 		"",
 		"\
 error: Found argument '' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal simplicity address create [FLAGS] [OPTIONS]
+    hal-simplicity address create [FLAGS] [OPTIONS]
 
 For more information try --help
 ",
 	);
 	// FIXME stdout instead of stderr
 	assert_cmd(
-		&["simplicity", "address", "create", "--pubkey", ""],
+		&["address", "create", "--pubkey", ""],
 		"Execution failed: invalid pubkey: InvalidHexLength(0)\n",
 		"",
 	);
 	// x-only keys not supported
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -258,7 +210,6 @@ For more information try --help
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -269,7 +220,7 @@ For more information try --help
 	);
 	// uncompressed keys ok (though FIXME we should not produce p2wpkh or p2shwpkh addresses which are unspendable!!)
 	assert_cmd(
-		&["simplicity", "address", "create", "--pubkey", "0400000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
+		&["address", "create", "--pubkey", "0400000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
 		r#"{
   "p2pkh": "2dfGL9NZh5ZHpQjJNiwu6pDe3R6du5GCNgY",
   "p2wpkh": "ert1qgqyvtapw3hp7p9anwf580rz4z0p4v9dy203prh",
@@ -279,14 +230,13 @@ For more information try --help
 	);
 	// hybrid keys are not
 	assert_cmd(
-		&["simplicity", "address", "create", "--pubkey", "0700000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
+		&["address", "create", "--pubkey", "0700000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
 		"Execution failed: invalid pubkey: Encoding(InvalidKeyPrefix(7))\n",
 		"",
 	);
 	// compressed keys are ok, and the output is NOT the same as for uncompressed keys
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -303,7 +253,6 @@ For more information try --help
 	// Valid blinder, no pubkey
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--blinder",
@@ -314,18 +263,17 @@ For more information try --help
 	);
 	// Invalid blinders all get the same generic message, and we don't even check for a pubkey
 	assert_cmd(
-		&["simplicity", "address", "create", "--blinder", ""],
+		&["address", "create", "--blinder", ""],
 		"Execution failed: invalid blinder: InvalidPublicKey\n",
 		"",
 	);
 	assert_cmd(
-		&["simplicity", "address", "create", "--blinder", "02abcd"],
+		&["address", "create", "--blinder", "02abcd"],
 		"Execution failed: invalid blinder: InvalidPublicKey\n",
 		"",
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--blinder",
@@ -336,7 +284,6 @@ For more information try --help
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--blinder",
@@ -353,7 +300,6 @@ For more information try --help
 }"#;
 	assert_cmd(
 		&[
-			"simplicity",
 			"-v", // -v can go anywhere, and does nothing
 			"address",
 			"create",
@@ -370,7 +316,7 @@ For more information try --help
 	//  to compressed keys.
 	assert_cmd(
 		&[
-			"simplicity", "address", "create",
+			"address", "create",
 			"--pubkey", "0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"--blinder", "0400000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"
 		],
@@ -379,7 +325,7 @@ For more information try --help
 	);
 	assert_cmd(
 		&[
-			"simplicity", "address", "create",
+			"address", "create",
 			"--pubkey", "0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"--blinder", "0700000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"
 		],
@@ -389,7 +335,6 @@ For more information try --help
 	// FIXME if you provide a script as well as a pubkey then the script is ignored
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -404,7 +349,7 @@ For more information try --help
 	);
 	// Empty script is OK, even though it's unspendable. Same with various invalid/unparseable scripts.
 	assert_cmd(
-		&["simplicity", "address", "create", "--script", ""],
+		&["address", "create", "--script", ""],
 		r#"{
   "p2sh": "XToMocNywBYNSiXUe5xvoa2naAps9Ek1hq",
   "p2wsh": "ert1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2szaqlpq",
@@ -414,7 +359,7 @@ For more information try --help
 	);
 	// Verbose does nothing
 	assert_cmd(
-		&["simplicity", "address", "create", "-v", "--script", ""],
+		&["address", "create", "-v", "--script", ""],
 		r#"{
   "p2sh": "XToMocNywBYNSiXUe5xvoa2naAps9Ek1hq",
   "p2wsh": "ert1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2szaqlpq",
@@ -424,7 +369,6 @@ For more information try --help
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--blinder",
@@ -441,7 +385,7 @@ For more information try --help
 	);
 	// This script is invalid (is a 64-byte push followed by nothing) but still can be parsed.
 	assert_cmd(
-		&["simplicity", "address", "create", "--script", "40"],
+		&["address", "create", "--script", "40"],
 		r#"{
   "p2sh": "XKLW7rD7tEnddSzwsHfg8rZa3a8wLTuEts",
   "p2wsh": "ert1qcdjplp2y6lqz7dvqkp7qlxy87rr2yll44vw5503fetce0n7znxhqtj2wee",
@@ -452,7 +396,7 @@ For more information try --help
 	// Check that all three things are allowed only once
 	assert_cmd(
 		&[
-			"simplicity", "address", "create",
+			"address", "create",
 			"--pubkey", "40",
 			"--pubkey", "20"
 		],
@@ -461,14 +405,14 @@ For more information try --help
 error: The argument '--pubkey <pubkey>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal simplicity address create --pubkey <pubkey>
+    hal-simplicity address create --pubkey <pubkey>
 
 For more information try --help
 ",
 	);
 	assert_cmd(
 		&[
-			"simplicity", "address", "create",
+			"address", "create",
 			"--blinder", "40",
 			"--blinder", "20"
 		],
@@ -477,14 +421,14 @@ For more information try --help
 error: The argument '--blinder <blinder>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal simplicity address create --blinder <blinder>
+    hal-simplicity address create --blinder <blinder>
 
 For more information try --help
 ",
 	);
 	assert_cmd(
 		&[
-			"simplicity", "address", "create",
+			"address", "create",
 			"--script", "40",
 			"--script", "20"
 		],
@@ -493,7 +437,7 @@ For more information try --help
 error: The argument '--script <script>' was provided more than once, but cannot be used multiple times
 
 USAGE:
-    hal simplicity address create --script <script>
+    hal-simplicity address create --script <script>
 
 For more information try --help
 ",
@@ -502,7 +446,6 @@ For more information try --help
 	// Test --yaml flag changes output format
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -516,7 +459,6 @@ For more information try --help
 	// Test -y flag (short form of --yaml)
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -530,7 +472,6 @@ For more information try --help
 	// Test --liquid flag changes address format
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -548,7 +489,6 @@ For more information try --help
 	// Test --elementsregtest flag (should be same as default)
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -566,7 +506,6 @@ For more information try --help
 	// Test -r flag (short form of --elementsregtest)
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -584,7 +523,6 @@ For more information try --help
 	// Test combining flags: --yaml with --liquid
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -599,7 +537,6 @@ For more information try --help
 	// Test combining flags: -y with --liquid (short form)
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -614,7 +551,6 @@ For more information try --help
 	// Test combining flags: -r with -y (both short forms)
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -629,7 +565,6 @@ For more information try --help
 	// Test with blinder and different network flags
 	assert_cmd(
 		&[
-			"simplicity",
 			"address",
 			"create",
 			"--pubkey",
@@ -650,13 +585,13 @@ For more information try --help
 // TODO address inspect
 
 #[test]
-fn cli_simplicity_address_inspect() {
+fn cli_address_inspect() {
 	let expected_help = "\
-hal-simplicity-address-inspect 
+hal-simplicity-address-inspect 0.1.0
 inspect addresses
 
 USAGE:
-    hal simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 FLAGS:
     -h, --help       Prints help information
@@ -670,42 +605,42 @@ ARGS:
 	// FIXME yes, you can, with a script rather than pubkey. Also the script is not
 	// length-prefixed, which is a little surprising and should be documented
 	assert_cmd(
-		&["simplicity", "address", "inspect"],
+		&["address", "inspect"],
 		"",
 		"error: The following required arguments were not provided:
     <address>
 
 USAGE:
-    hal simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 For more information try --help
 ",
 	);
-	assert_cmd(&["simplicity", "address", "inspect", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "inspect", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "address", "inspect", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["address", "inspect", "-h"], expected_help, "");
+	assert_cmd(&["address", "inspect", "--help"], expected_help, "");
+	assert_cmd(&["address", "inspect", "--help", "xyz"], expected_help, "");
 
 	// FIXME stdout instead of stderr
 	assert_cmd(
-		&["simplicity", "address", "inspect", ""],
+		&["address", "inspect", ""],
 		"Execution failed: invalid address format: Base58(TooShort(TooShortError { length: 0 }))\n",
 		"",
 	);
 	// FIXME this error is absolutely terrible
 	assert_cmd(
-		&["simplicity", "address", "inspect", "bc1q7z3dshje7e4tftag5c3w7e85pr00r6cq34khh8"],
+		&["address", "inspect", "bc1q7z3dshje7e4tftag5c3w7e85pr00r6cq34khh8"],
 		"Execution failed: invalid address format: Base58(Decode(InvalidCharacterError { invalid: 48 }))\n",
 		"",
 	);
 	// FIXME this one is possibly even worse
 	assert_cmd(
-		&["simplicity", "address", "inspect", "1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N"],
+		&["address", "inspect", "1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N"],
 		"Execution failed: invalid address format: InvalidAddress(\"1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N\")\n",
 		"",
 	);
 	// liquid addresses ok
 	assert_cmd(
-		&["simplicity", "address", "inspect", "ex1q7z3dshje7e4tftag5c3w7e85pr00r6cqmut068"],
+		&["address", "inspect", "ex1q7z3dshje7e4tftag5c3w7e85pr00r6cqmut068"],
 		r#"{
   "network": "liquid",
   "type": "p2wpkh",
@@ -719,7 +654,7 @@ For more information try --help
 		"",
 	);
 	assert_cmd(
-		&["simplicity", "address", "inspect", "ert1q7z3dshje7e4tftag5c3w7e85pr00r6cqpwph9a"],
+		&["address", "inspect", "ert1q7z3dshje7e4tftag5c3w7e85pr00r6cqpwph9a"],
 		r#"{
   "network": "elementsregtest",
   "type": "p2wpkh",
@@ -733,7 +668,7 @@ For more information try --help
 		"",
 	);
 	assert_cmd(
-		&["simplicity", "address", "inspect", "Q7AX4Ff5CZzEoJoVbGqqKFRsagz9Q3bS1v"],
+		&["address", "inspect", "Q7AX4Ff5CZzEoJoVbGqqKFRsagz9Q3bS1v"],
 		r#"{
   "network": "liquid",
   "type": "p2pkh",
@@ -746,7 +681,7 @@ For more information try --help
 		"",
 	);
 	assert_cmd(
-		&["simplicity", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
+		&["address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
 		r#"{
   "network": "elementsregtest",
   "type": "p2pkh",
@@ -760,7 +695,7 @@ For more information try --help
 	);
 	// -v does nothing
 	assert_cmd(
-		&["simplicity", "-v", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
+		&["-v", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
 		r#"{
   "network": "elementsregtest",
   "type": "p2pkh",
@@ -774,7 +709,7 @@ For more information try --help
 	);
 	// -y outputs yaml
 	assert_cmd(
-		&["simplicity", "address", "inspect", "-y", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
+		&["address", "inspect", "-y", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
 		r#"---
 network: elementsregtest
 type: p2pkh
@@ -785,13 +720,13 @@ pubkey_hash: 6c95622b280be97792ec1b3505700f9e674cf509"#,
 		"",
 	);
 	assert_cmd(
-		&["simplicity", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu", ""],
+		&["address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu", ""],
 		"",
 		"\
 error: Found argument '' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] <address>
 
 For more information try --help
 ",
@@ -799,13 +734,13 @@ For more information try --help
 }
 
 #[test]
-fn cli_simplicity_block() {
+fn cli_block() {
 	let expected_help = "\
-hal-simplicity-block 
+hal-simplicity-block 0.1.0
 manipulate blocks
 
 USAGE:
-    hal simplicity block [FLAGS] <SUBCOMMAND>
+    hal-simplicity block [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -815,20 +750,20 @@ SUBCOMMANDS:
     create    create a raw block from JSON
     decode    decode a raw block to JSON
 ";
-	assert_cmd(&["simplicity", "block"], "", expected_help);
-	assert_cmd(&["simplicity", "block", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["block"], "", expected_help);
+	assert_cmd(&["block", "-h"], expected_help, "");
+	assert_cmd(&["block", "--help"], expected_help, "");
+	assert_cmd(&["block", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_block_create() {
+fn cli_block_create() {
 	let expected_help = "\
-hal-simplicity-block-create 
+hal-simplicity-block-create 0.1.0
 create a raw block from JSON
 
 USAGE:
-    hal simplicity block create [FLAGS] [block-info]
+    hal-simplicity block create [FLAGS] [block-info]
 
 FLAGS:
     -h, --help          Prints help information
@@ -839,21 +774,16 @@ ARGS:
     <block-info>    the block info in JSON
 ";
 	// FIXME stdout not stderr
-	assert_cmd(
-		&["simplicity", "block", "create"],
-		"Execution failed: no 'block-info' argument given\n",
-		"",
-	);
-	assert_cmd(&["simplicity", "block", "create", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "create", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "create", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["block", "create"], "Execution failed: no 'block-info' argument given\n", "");
+	assert_cmd(&["block", "create", "-h"], expected_help, "");
+	assert_cmd(&["block", "create", "--help"], expected_help, "");
+	assert_cmd(&["block", "create", "--help", "xyz"], expected_help, "");
 
 	// TODO this was as far as I got trying to find a valid input
-	assert_cmd(&["simplicity", "block", "create", ""], "Execution failed: invaid json JSON input: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(&["simplicity", "block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(&["block", "create", ""], "Execution failed: invaid json JSON input: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
+	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
 	assert_cmd(
 		&[
-			"simplicity",
 			"block",
 			"create",
 			r#"{
@@ -870,11 +800,10 @@ ARGS:
 		"Execution failed: missing challenge\n",
 		"",
 	);
-	assert_cmd(&["simplicity", "block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
 	// FIXME this error is awful; the actual field it wants is called `dynafed_current`
 	assert_cmd(
 		&[
-			"simplicity",
 			"block",
 			"create",
 			r#"{
@@ -923,13 +852,12 @@ ARGS:
 	//
 	// Also, as always, these errors show up on stdout instead of stderr..
 	assert_cmd(
-		&["simplicity", "block", "create", &header_json.replace("%TRANSACTIONS%", "")],
+		&["block", "create", &header_json.replace("%TRANSACTIONS%", "")],
 		"Execution failed: No transactions provided.\n",
 		"",
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"block",
 			"create",
 			&header_json.replace("%TRANSACTIONS%", ", \"transactions\": []"),
@@ -939,7 +867,6 @@ ARGS:
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"block",
 			"create",
 			&header_json.replace("%TRANSACTIONS%", ", \"raw_transactions\": []"),
@@ -949,7 +876,6 @@ ARGS:
 	);
 	assert_cmd(
 		&[
-			"simplicity",
 			"block",
 			"create",
 			&header_json
@@ -962,7 +888,6 @@ ARGS:
 	// To test -r we can't use `assert_cmd` since it assumes that stdout
 	// is valid utf-8, which a raw block will not be.
 	let args = &[
-		"simplicity",
 		"block",
 		"create",
 		"-r",
@@ -976,13 +901,13 @@ ARGS:
 }
 
 #[test]
-fn cli_simplicity_block_decode() {
+fn cli_block_decode() {
 	let expected_help = "\
-hal-simplicity-block-decode 
+hal-simplicity-block-decode 0.1.0
 decode a raw block to JSON
 
 USAGE:
-    hal simplicity block decode [FLAGS] [raw-block]
+    hal-simplicity block decode [FLAGS] [raw-block]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -996,54 +921,42 @@ ARGS:
     <raw-block>    the raw block in hex
 ";
 	// FIXME stdout not stderr
-	assert_cmd(
-		&["simplicity", "block", "decode"],
-		"Execution failed: no 'raw-block' argument given\n",
-		"",
-	);
-	assert_cmd(&["simplicity", "block", "decode", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "decode", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "block", "decode", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["block", "decode"], "Execution failed: no 'raw-block' argument given\n", "");
+	assert_cmd(&["block", "decode", "-h"], expected_help, "");
+	assert_cmd(&["block", "decode", "--help"], expected_help, "");
+	assert_cmd(&["block", "decode", "--help", "xyz"], expected_help, "");
 
 	// FIXME this error message is awful, and it's on stdout
-	assert_cmd(&["simplicity", "block", "decode", ""], "Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(&["block", "decode", ""], "Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
 	// This is a hex-encoded block header, not a full block
-	assert_cmd(&["simplicity", "block", "decode", BLOCK_HEADER_1585319], HEADER_DECODE_1585319, "");
+	assert_cmd(&["block", "decode", BLOCK_HEADER_1585319], HEADER_DECODE_1585319, "");
 	// This is the same hex-encoded block header, with --txids. FIXME this is awful.
-	assert_cmd(&["simplicity", "block", "decode", "--txids", BLOCK_HEADER_1585319],
+	assert_cmd(&["block", "decode", "--txids", BLOCK_HEADER_1585319],
 		"Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n",
 "");
 	// Here is the header plus some arbitrary junk
-	assert_cmd(&["simplicity", "block", "decode", &(BLOCK_HEADER_1585319.to_owned() + "0000")],
+	assert_cmd(&["block", "decode", &(BLOCK_HEADER_1585319.to_owned() + "0000")],
 		"Execution failed: invalid block format: ParseFailed(\"data not consumed entirely when explicitly deserializing\")\n",
 "");
 	// Here is the whole block.
-	assert_cmd(&["simplicity", "block", "decode", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
+	assert_cmd(&["block", "decode", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
+	assert_cmd(&["block", "decode", "--liquid", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
 	assert_cmd(
-		&["simplicity", "block", "decode", "--liquid", FULL_BLOCK_1585319],
+		&["block", "decode", "--elementsregtest", FULL_BLOCK_1585319],
 		HEADER_DECODE_1585319,
 		"",
 	);
-	assert_cmd(
-		&["simplicity", "block", "decode", "--elementsregtest", FULL_BLOCK_1585319],
-		HEADER_DECODE_1585319,
-		"",
-	);
-	assert_cmd(
-		&["simplicity", "block", "decode", "-r", FULL_BLOCK_1585319],
-		HEADER_DECODE_1585319,
-		"",
-	);
+	assert_cmd(&["block", "decode", "-r", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
 	// FIXME you can pass -r and --liquid at the same time, but these are incompatible. (Though they appear
 	//  to do nothing so maybe this is fine..)
 	assert_cmd(
-		&["simplicity", "block", "decode", "-r", "--liquid", FULL_BLOCK_1585319],
+		&["block", "decode", "-r", "--liquid", FULL_BLOCK_1585319],
 		HEADER_DECODE_1585319,
 		"",
 	);
 	// Here is the whole block. FIXME if you provide --txids it gives you the txids, but if you don't, it gives you nothing
 	assert_cmd(
-		&["simplicity", "block", "decode", "--txids", FULL_BLOCK_1585319],
+		&["block", "decode", "--txids", FULL_BLOCK_1585319],
 		format!(
 			r#"{{
   "header": {},
@@ -1059,13 +972,13 @@ ARGS:
 }
 
 #[test]
-fn cli_simplicity_keypair() {
+fn cli_keypair() {
 	let expected_help = "\
-hal-simplicity-keypair 
+hal-simplicity-keypair 0.1.0
 manipulate private and public keys
 
 USAGE:
-    hal simplicity keypair [FLAGS] <SUBCOMMAND>
+    hal-simplicity keypair [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -1074,30 +987,30 @@ FLAGS:
 SUBCOMMANDS:
     generate    generate a random private/public keypair
 ";
-	assert_cmd(&["simplicity", "keypair"], "", expected_help);
+	assert_cmd(&["keypair"], "", expected_help);
 	// -h does NOT mean --help. It is just ignored entirely.
-	//assert_cmd(&["simplicity", "keypair", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "keypair", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "keypair", "--help", "xyz"], expected_help, "");
+	//assert_cmd(&["keypair", "-h"], expected_help, "");
+	assert_cmd(&["keypair", "--help"], expected_help, "");
+	assert_cmd(&["keypair", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_keypair_generate() {
+fn cli_keypair_generate() {
 	let expected_help = "\
-hal-simplicity-keypair-generate 
+hal-simplicity-keypair-generate 0.1.0
 generate a random private/public keypair
 
 USAGE:
-    hal simplicity keypair generate [FLAGS]
+    hal-simplicity keypair generate [FLAGS]
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
     -y, --yaml       print output in YAML instead of JSON
 ";
-	assert_cmd(&["simplicity", "keypair", "generate", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "keypair", "generate", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "keypair", "generate", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["keypair", "generate", "-h"], expected_help, "");
+	assert_cmd(&["keypair", "generate", "--help"], expected_help, "");
+	assert_cmd(&["keypair", "generate", "--help", "xyz"], expected_help, "");
 
 	// New block to avoid warnings about `struct`s being defined not at the beginning of block
 	{
@@ -1112,23 +1025,19 @@ FLAGS:
 		}
 
 		// Closure needed for borrowck reasons
-		assert_deserialize_cmd(&["simplicity", "keypair", "generate"], |s| {
-			serde_json::from_slice::<Object>(s)
-		});
-		assert_deserialize_cmd(&["simplicity", "keypair", "generate"], |s| {
-			serde_yaml::from_slice::<Object>(s)
-		});
+		assert_deserialize_cmd(&["keypair", "generate"], |s| serde_json::from_slice::<Object>(s));
+		assert_deserialize_cmd(&["keypair", "generate"], serde_yaml::from_slice::<Object>);
 	}
 }
 
 #[test]
-fn cli_simplicity_simplicity() {
+fn cli_simplicity() {
 	let expected_help = "\
-hal-simplicity-simplicity 
+hal-simplicity-simplicity 0.1.0
 manipulate Simplicity programs
 
 USAGE:
-    hal simplicity simplicity [FLAGS] <SUBCOMMAND>
+    hal-simplicity simplicity [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -1138,20 +1047,20 @@ SUBCOMMANDS:
     info       Parse a base64-encoded Simplicity program and decode it
     sighash    Compute signature hashes or signatures for use with Simplicity
 ";
-	assert_cmd(&["simplicity", "simplicity"], "", expected_help);
-	assert_cmd(&["simplicity", "simplicity", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "simplicity", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "simplicity", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["simplicity"], "", expected_help);
+	assert_cmd(&["simplicity", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_simplicity_info() {
+fn cli_simplicity_info() {
 	let expected_help = "\
-hal-simplicity-simplicity-info 
+hal-simplicity-simplicity-info 0.1.0
 Parse a base64-encoded Simplicity program and decode it
 
 USAGE:
-    hal simplicity simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] <program> [witness]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -1170,31 +1079,31 @@ ARGS:
 	// programs and witnesses. But I'd rather do it properly (i.e. with some
 	// docs and help) so not gonna do it now.
 	assert_cmd(
-		&["simplicity", "simplicity", "info"],
+		&["simplicity", "info"],
 		"",
 		"\
 error: The following required arguments were not provided:
     <program>
 
 USAGE:
-    hal simplicity simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] <program> [witness]
 
 For more information try --help
 ",
 	);
-	assert_cmd(&["simplicity", "simplicity", "info", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "simplicity", "info", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "simplicity", "info", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["simplicity", "info", "-h"], expected_help, "");
+	assert_cmd(&["simplicity", "info", "--help"], expected_help, "");
+	assert_cmd(&["simplicity", "info", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_tx() {
+fn cli_tx() {
 	let expected_help = "\
-hal-simplicity-tx 
+hal-simplicity-tx 0.1.0
 manipulate transactions
 
 USAGE:
-    hal simplicity tx [FLAGS] <SUBCOMMAND>
+    hal-simplicity tx [FLAGS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -1204,20 +1113,20 @@ SUBCOMMANDS:
     create    create a raw transaction from JSON
     decode    decode a raw transaction to JSON
 ";
-	assert_cmd(&["simplicity", "tx"], "", expected_help);
-	assert_cmd(&["simplicity", "tx", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["tx"], "", expected_help);
+	assert_cmd(&["tx", "-h"], expected_help, "");
+	assert_cmd(&["tx", "--help"], expected_help, "");
+	assert_cmd(&["tx", "--help", "xyz"], expected_help, "");
 }
 
 #[test]
-fn cli_simplicity_tx_create() {
+fn cli_tx_create() {
 	let expected_help = "\
-hal-simplicity-tx-create 
+hal-simplicity-tx-create 0.1.0
 create a raw transaction from JSON
 
 USAGE:
-    hal simplicity tx create [FLAGS] [tx-info]
+    hal-simplicity tx create [FLAGS] [tx-info]
 
 FLAGS:
     -h, --help          Prints help information
@@ -1227,37 +1136,29 @@ FLAGS:
 ARGS:
     <tx-info>    the transaction info in JSON
 ";
-	assert_cmd(
-		&["simplicity", "tx", "create"],
-		"Execution failed: no 'tx-info' argument given\n",
-		"",
-	);
-	assert_cmd(&["simplicity", "tx", "create", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "create", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "create", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["tx", "create"], "Execution failed: no 'tx-info' argument given\n", "");
+	assert_cmd(&["tx", "create", "-h"], expected_help, "");
+	assert_cmd(&["tx", "create", "--help"], expected_help, "");
+	assert_cmd(&["tx", "create", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["simplicity", "tx", "create", ""], "Execution failed: invalid JSON provided: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(
-		&["simplicity", "tx", "create", "{ }"],
-		"Execution failed: Field \"version\" is required.\n",
-		"",
-	);
+	assert_cmd(&["tx", "create", ""], "Execution failed: invalid JSON provided: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
+	assert_cmd(&["tx", "create", "{ }"], "Execution failed: Field \"version\" is required.\n", "");
 	// FIXME I have no idea what is wrong here. But putting a test in to track fixing
 	//  whatever is causing this nonsense error.
 	assert_cmd(
-		&["simplicity", "tx", "create", "{ \"version\": 10, \"locktime\": 10 }"],
+		&["tx", "create", "{ \"version\": 10, \"locktime\": 10 }"],
 		"Execution failed: invalid JSON provided: Error(\"expected value\", line: 1, column: 30)\n",
 		"",
 	);
 	// FIXME: lol, replace this locktime format with something sane
 	assert_cmd(
-		&["simplicity", "tx", "create", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
+		&["tx", "create", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
 		"0a0000000000000a000000",
 		"",
 	);
 	// -v does nothing
 	assert_cmd(
-		&["simplicity", "tx", "create", "-v", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
+		&["tx", "create", "-v", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
 		"0a0000000000000a000000",
 		"",
 	);
@@ -1265,7 +1166,6 @@ ARGS:
 	// To test -r we can't use `assert_cmd` since it assumes that stdout
 	// is valid utf-8, which a raw block will not be.
 	let args = &[
-		"simplicity",
 		"tx",
 		"create",
 		"-r",
@@ -1277,13 +1177,13 @@ ARGS:
 }
 
 #[test]
-fn cli_simplicity_tx_decode() {
+fn cli_tx_decode() {
 	let expected_help = "\
-hal-simplicity-tx-decode 
+hal-simplicity-tx-decode 0.1.0
 decode a raw transaction to JSON
 
 USAGE:
-    hal simplicity tx decode [FLAGS] [raw-tx]
+    hal-simplicity tx decode [FLAGS] [raw-tx]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -1295,18 +1195,14 @@ FLAGS:
 ARGS:
     <raw-tx>    the raw transaction in hex
 ";
-	assert_cmd(
-		&["simplicity", "tx", "decode"],
-		"Execution failed: no 'raw-tx' argument given\n",
-		"",
-	);
-	assert_cmd(&["simplicity", "tx", "decode", "-h"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "decode", "--help"], expected_help, "");
-	assert_cmd(&["simplicity", "tx", "decode", "--help", "xyz"], expected_help, "");
+	assert_cmd(&["tx", "decode"], "Execution failed: no 'raw-tx' argument given\n", "");
+	assert_cmd(&["tx", "decode", "-h"], expected_help, "");
+	assert_cmd(&["tx", "decode", "--help"], expected_help, "");
+	assert_cmd(&["tx", "decode", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["simplicity", "tx", "decode", ""], "Execution failed: invalid tx format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(&["tx", "decode", ""], "Execution failed: invalid tx format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
 	// A bitcoin transaction
-	assert_cmd(&["simplicity", "tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: invalid tx format: NonMinimalVarInt\n", "");
+	assert_cmd(&["tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: invalid tx format: NonMinimalVarInt\n", "");
 	// A Liquid transaction
 	let tx_decode = r#"{
   "txid": "9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6",
@@ -1416,25 +1312,25 @@ ARGS:
     }
   ]
 }"#;
-	assert_cmd(&["simplicity", "tx", "decode", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
-	assert_cmd(&["simplicity", "tx", "decode", "-r", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "-r", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
 	// -v works but seems to do nothing
-	assert_cmd(&["simplicity", "tx", "decode", "-v", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "-v", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
-	assert_cmd(&["simplicity", "tx", "decode", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode.replace("2dxQzjvrkmRGSa5gwgaQn1oLtRo5pXS94oJ", "QLFdUboUPJnUzvsXKu83hUtrQ1DuxyggRg"),
 		"");
 	// FIXME both -r and --liquid are allowed, and it seems that -r wins. Should error out instead.
-	assert_cmd(&["simplicity", "tx", "decode", "-r", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "-r", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
 	// -v works but seems to do nothing
-	assert_cmd(&["simplicity", "tx", "decode", "-y", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "-y", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		r#"---
 txid: 9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6
 wtxid: c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008

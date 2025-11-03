@@ -20,19 +20,14 @@ fn setup_logger(lvl: log::LevelFilter) {
 /// Create the main app object.
 fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 	clap::App::new("hal-simplicity")
-		.bin_name("hal")
+		.bin_name("hal-simplicity")
 		.version(clap::crate_version!())
-		.subcommand(
-			cmd::subcommand_group("simplicity", "Simplicity extensions for hal")
-				.about("hal-simplicity -- a Simplicity extension of hal")
-				.setting(clap::AppSettings::GlobalVersion)
-				.setting(clap::AppSettings::VersionlessSubcommands)
-				.setting(clap::AppSettings::SubcommandRequiredElseHelp)
-				.setting(clap::AppSettings::DisableHelpSubcommand)
-				.setting(clap::AppSettings::AllArgsOverrideSelf)
-				.subcommands(cmd::subcommands()),
-		)
+		.about("hal-simplicity -- a Simplicity-enabled fork of hal")
+		.setting(clap::AppSettings::GlobalVersion)
+		.setting(clap::AppSettings::VersionlessSubcommands)
 		.setting(clap::AppSettings::SubcommandRequiredElseHelp)
+		.setting(clap::AppSettings::AllArgsOverrideSelf)
+		.subcommands(cmd::subcommands())
 		.arg(
 			cmd::opt("verbose", "print verbose logging output to stderr")
 				.short("v")
@@ -78,15 +73,10 @@ fn main() {
 		false => setup_logger(log::LevelFilter::Warn),
 	}
 
-	match matches.subcommand() {
-		("simplicity", Some(m)) => {
-			if execute_builtin(m) {
-				// success
-				process::exit(0);
-			} else {
-				panic!("Subcommand not found: {}", m.subcommand().0);
-			}
-		}
-		(cmd, _) => panic!("Subcommand not found: {:?}", cmd),
+	if execute_builtin(&matches) {
+		// success
+		process::exit(0);
+	} else {
+		panic!("Subcommand not found: {}", matches.subcommand().0);
 	}
 }
