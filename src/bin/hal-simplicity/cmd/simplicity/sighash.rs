@@ -104,7 +104,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
+pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> String {
 	let tx_hex = matches.value_of("tx").expect("tx mandatory");
 	let input_idx = matches.value_of("input-index").expect("input-idx is mandatory");
 	let cmr = matches.value_of("cmr").expect("cmr is mandatory");
@@ -126,8 +126,8 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		signature,
 		&input_utxos,
 	) {
-		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Ok(info) => cmd::serialize_output(matches, &info),
+		Err(e) => cmd::serialize_output(matches, &e),
 	}
 }
 

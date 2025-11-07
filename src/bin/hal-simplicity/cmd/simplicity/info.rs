@@ -45,13 +45,13 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
+pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> String {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness");
 
 	match exec_inner(program, witness) {
-		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Ok(info) => cmd::serialize_output(matches, &info),
+		Err(e) => cmd::serialize_output(matches, &e),
 	}
 }
 

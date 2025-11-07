@@ -33,10 +33,10 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(self::sighash::cmd())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
+pub fn execute<'a>(matches: &clap::ArgMatches<'a>) -> String {
 	match matches.subcommand() {
 		("info", Some(m)) => self::info::exec(m),
 		("sighash", Some(m)) => self::sighash::exec(m),
 		(_, _) => unreachable!("clap prints help"),
-	};
+	}
 }

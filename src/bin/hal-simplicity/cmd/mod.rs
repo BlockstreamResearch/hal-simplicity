@@ -105,10 +105,22 @@ pub fn arg_or_stdin<'a>(matches: &'a clap::ArgMatches<'a>, arg: &str) -> Cow<'a,
 	}
 }
 
-pub fn print_output<'a, T: serde::Serialize>(matches: &clap::ArgMatches<'a>, out: &T) {
+/// Serialize output to String (for library use)
+/// This allows functions to return data instead of just printing
+pub fn serialize_output<'a, T: serde::Serialize>(
+	matches: &clap::ArgMatches<'a>,
+	out: &T,
+) -> String {
 	if matches.is_present("yaml") {
-		serde_yaml::to_writer(::std::io::stdout(), &out).unwrap();
+		serde_yaml::to_string(&out).unwrap()
 	} else {
-		serde_json::to_writer_pretty(::std::io::stdout(), &out).unwrap();
+		serde_json::to_string_pretty(&out).unwrap()
 	}
+}
+
+/// Print output to stdout (for CLI use)
+/// Now calls serialize_output and prints the result
+pub fn print_output<'a, T: serde::Serialize>(matches: &clap::ArgMatches<'a>, out: &T) {
+	let output = serialize_output(matches, out);
+	println!("{}", output);
 }
