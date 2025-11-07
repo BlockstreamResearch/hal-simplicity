@@ -104,7 +104,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> String {
+pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	let tx_hex = matches.value_of("tx").expect("tx mandatory");
 	let input_idx = matches.value_of("input-index").expect("input-idx is mandatory");
 	let cmr = matches.value_of("cmr").expect("cmr is mandatory");

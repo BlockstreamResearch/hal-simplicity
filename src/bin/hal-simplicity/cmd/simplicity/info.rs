@@ -45,7 +45,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> String {
+pub fn exec<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness");
 

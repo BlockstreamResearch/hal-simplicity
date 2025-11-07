@@ -13,7 +13,7 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(cmd_inspect())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>) -> String {
+pub fn execute<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	match matches.subcommand() {
 		("create", Some(m)) => exec_create(m),
 		("inspect", Some(m)) => exec_inspect(m),
@@ -30,7 +30,7 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 	])
 }
 
-fn exec_create<'a>(matches: &clap::ArgMatches<'a>) -> String {
+fn exec_create<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	let network = cmd::network(matches);
 
 	let blinder = matches.value_of("blinder").map(|b| {
@@ -58,7 +58,7 @@ fn cmd_inspect<'a>() -> clap::App<'a, 'a> {
 		.args(&[cmd::opt_yaml(), cmd::arg("address", "the address").required(true)])
 }
 
-fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) -> String {
+fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	let address_str = matches.value_of("address").expect("no address provided");
 	let address: Address = address_str.parse().expect("invalid address format");
 	let script_pk = address.script_pubkey();

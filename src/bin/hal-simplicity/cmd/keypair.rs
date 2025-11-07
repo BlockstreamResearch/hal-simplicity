@@ -8,7 +8,7 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(cmd_generate())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>) -> String {
+pub fn execute<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	match matches.subcommand() {
 		("generate", Some(m)) => exec_generate(m),
 		(_, _) => unreachable!("clap prints help"),
@@ -19,7 +19,7 @@ fn cmd_generate<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("generate", "generate a random private/public keypair").args(&[cmd::opt_yaml()])
 }
 
-fn exec_generate<'a>(matches: &clap::ArgMatches<'a>) -> String {
+fn exec_generate<'a>(matches: &clap::ArgMatches<'a>) -> Result<String, crate::cmd::CmdError> {
 	#[derive(serde::Serialize)]
 	struct Res {
 		secret: secp256k1::SecretKey,

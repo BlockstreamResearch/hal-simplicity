@@ -7,8 +7,31 @@ pub mod tx;
 use std::borrow::Cow;
 use std::io;
 use std::io::Read;
+use std::fmt;
 
 use hal_simplicity::Network;
+
+/// Error type for command execution
+#[derive(Debug)]
+pub enum CmdError {
+	Serialization(String),
+	InvalidInput(String),
+	ParseError(String),
+	IoError(String),
+}
+
+impl fmt::Display for CmdError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			CmdError::Serialization(msg) => write!(f, "Serialization error: {}", msg),
+			CmdError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
+			CmdError::ParseError(msg) => write!(f, "Parse error: {}", msg),
+			CmdError::IoError(msg) => write!(f, "IO error: {}", msg),
+		}
+	}
+}
+
+impl std::error::Error for CmdError {}
 
 /// Build a list of all built-in subcommands.
 pub fn subcommands<'a>() -> Vec<clap::App<'a, 'a>> {
@@ -107,20 +130,28 @@ pub fn arg_or_stdin<'a>(matches: &'a clap::ArgMatches<'a>, arg: &str) -> Cow<'a,
 
 /// Serialize output to String (for library use)
 /// This allows functions to return data instead of just printing
+/// Returns Result for proper error handling in production
 pub fn serialize_output<'a, T: serde::Serialize>(
 	matches: &clap::ArgMatches<'a>,
 	out: &T,
-) -> String {
+) -> Result<String, CmdError> {
 	if matches.is_present("yaml") {
-		serde_yaml::to_string(&out).unwrap()
+		serde_yaml::to_string(&out)
+			.map_err(|e| CmdError::Serialization(e.to_string()))
 	} else {
-		serde_json::to_string_pretty(&out).unwrap()
+		serde_json::to_string_pretty(&out)
+			.map_err(|e| CmdError::Serialization(e.to_string()))
 	}
 }
 
 /// Print output to stdout (for CLI use)
 /// Now calls serialize_output and prints the result
 pub fn print_output<'a, T: serde::Serialize>(matches: &clap::ArgMatches<'a>, out: &T) {
-	let output = serialize_output(matches, out);
-	println!("{}", output);
+	match serialize_output(matches, out) {
+		Ok(output) => println!("{}", output),
+		Err(e) => {
+			eprintln!("Error: {}", e);
+			std::process::exit(1);
+		}
+	}
 }
