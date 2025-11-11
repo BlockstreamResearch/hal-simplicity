@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use elements::taproot::{TaprootBuilder, TaprootSpendInfo};
 use simplicity::bitcoin::secp256k1;
 use simplicity::jet::Jet;
 use simplicity::{BitIter, CommitNode, DecodeError, ParseError, RedeemNode};
@@ -91,12 +92,15 @@ impl<J: Jet> Program<J> {
 	}
 }
 
-// Stolen from simplicity-webide
-fn unspendable_internal_key() -> secp256k1::XOnlyPublicKey {
+/// The unspendable internal key specified in BIP-0341.
+///
+/// This is a "nothing up my sleeve" (NUMS) point. See the text of BIP-0341
+/// for its derivation.
+#[rustfmt::skip] // mangles byte vectors
+pub fn unspendable_internal_key() -> secp256k1::XOnlyPublicKey {
 	secp256k1::XOnlyPublicKey::from_slice(&[
-		0xf5, 0x91, 0x9f, 0xa6, 0x4c, 0xe4, 0x5f, 0x83, 0x06, 0x84, 0x90, 0x72, 0xb2, 0x6c, 0x1b,
-		0xfd, 0xd2, 0x93, 0x7e, 0x6b, 0x81, 0x77, 0x47, 0x96, 0xff, 0x37, 0x2b, 0xd1, 0xeb, 0x53,
-		0x62, 0xd2,
+		0x50, 0x92, 0x9b, 0x74, 0xc1, 0xa0, 0x49, 0x54, 0xb7, 0x8b, 0x4b, 0x60, 0x35, 0xe9, 0x7a, 0x5e,
+		0x07, 0x8a, 0x5a, 0x0f, 0x28, 0xec, 0x96, 0xd5, 0x47, 0xbf, 0xee, 0x9a, 0xce, 0x80, 0x3a, 0xc0, 
 	])
 	.expect("key should be valid")
 }
@@ -106,20 +110,26 @@ fn script_ver(cmr: simplicity::Cmr) -> (elements::Script, elements::taproot::Lea
 	(script, simplicity::leaf_version())
 }
 
-fn taproot_spend_info(cmr: simplicity::Cmr) -> elements::taproot::TaprootSpendInfo {
-	let builder = elements::taproot::TaprootBuilder::new();
+/// Given a Simplicity CMR and an internal key, computes the [`TaprootSpendInfo`]
+/// for a Taptree with this CMR as its single leaf.
+pub fn taproot_spend_info(
+	internal_key: secp256k1::XOnlyPublicKey,
+	cmr: simplicity::Cmr,
+) -> TaprootSpendInfo {
+	let builder = TaprootBuilder::new();
 	let (script, version) = script_ver(cmr);
 	let builder = builder.add_leaf_with_ver(0, script, version).expect("tap tree should be valid");
-	builder
-		.finalize(secp256k1::SECP256K1, unspendable_internal_key())
-		.expect("tap tree should be valid")
+	builder.finalize(secp256k1::SECP256K1, internal_key).expect("tap tree should be valid")
 }
 
+/// Given a Simplicity CMR, computes an unconfidential Elements address
+/// (for the given network) corresponding to a Taptree with an unspendable
+/// internal key and this CMR as its single leaf.
 pub fn elements_address(
 	cmr: simplicity::Cmr,
 	params: &'static elements::AddressParams,
 ) -> elements::Address {
-	let info = taproot_spend_info(cmr);
+	let info = taproot_spend_info(unspendable_internal_key(), cmr);
 	let blinder = None;
 	elements::Address::p2tr(
 		secp256k1::SECP256K1,
