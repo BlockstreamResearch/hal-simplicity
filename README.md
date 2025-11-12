@@ -128,7 +128,7 @@ hal-simplicity keypair generate
 ### hal-simplicity simplicity info
 Parse a base64-encoded Simplicity program and decode it
 ```bash
-hal-simplicity simplciity info <base64-program>
+hal-simplicity simplicity info <base64-program>
 ```
 
 ### hal-simplicity simplicity sighash
