@@ -19,12 +19,15 @@ use serde::{Deserialize, Serialize};
 pub enum Network {
 	ElementsRegtest,
 	Liquid,
+	LiquidTestnet,
 }
 
 impl Network {
 	pub fn from_params(params: &'static AddressParams) -> Option<Network> {
 		if *params == AddressParams::ELEMENTS {
 			Some(Network::ElementsRegtest)
+		} else if *params == AddressParams::LIQUID_TESTNET {
+			Some(Network::LiquidTestnet)
 		} else if *params == AddressParams::LIQUID {
 			Some(Network::Liquid)
 		} else {
@@ -36,6 +39,7 @@ impl Network {
 		match self {
 			Network::ElementsRegtest => &AddressParams::ELEMENTS,
 			Network::Liquid => &AddressParams::LIQUID,
+			Network::LiquidTestnet => &AddressParams::LIQUID_TESTNET,
 		}
 	}
 }
