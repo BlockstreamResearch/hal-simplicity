@@ -693,6 +693,22 @@ For more information try --help
 }"#,
 		"",
 	);
+	assert_cmd(
+		&["address", "inspect", "tlq1qq2g07nju42l0nlx0erqa3wsel2l8prnq96rlnhml262mcj7pe8w6ndvvyg237japt83z24m8gu4v3yfhaqvrqxydadc9scsmw"],
+		r#"{
+  "network": "liquidtestnet",
+  "type": "p2wpkh",
+  "script_pub_key": {
+    "hex": "0014b58c22151f4ba159e2255767472ac89137e81830",
+    "asm": "OP_0 OP_PUSHBYTES_20 b58c22151f4ba159e2255767472ac89137e81830"
+  },
+  "witness_program_version": 0,
+  "witness_pubkey_hash": "b58c22151f4ba159e2255767472ac89137e81830",
+  "blinding_pubkey": "0290ff4e5caabef9fccfc8c1d8ba19fabe708e602e87f9df7f5695bc4bc1c9dda9",
+  "unconfidential": "tex1qkkxzy9glfws4nc392an5w2kgjym7sxpshuwkjy"
+}"#,
+		"",
+	);
 	// -v does nothing
 	assert_cmd(
 		&["-v", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
