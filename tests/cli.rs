@@ -1045,6 +1045,7 @@ FLAGS:
 
 SUBCOMMANDS:
     info       Parse a base64-encoded Simplicity program and decode it
+    pset       manipulate PSETs for spending from Simplicity programs
     sighash    Compute signature hashes or signatures for use with Simplicity
 ";
 	assert_cmd(&["simplicity"], "", expected_help);
