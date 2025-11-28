@@ -5,15 +5,16 @@ use crate::cmd;
 
 use super::{Error, ErrorExt as _};
 
-use elements::hashes::Hash;
+use elements::hashes::Hash as _;
+use elements::pset::PartiallySignedTransaction;
 use hal_simplicity::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey,
 };
-use hal_simplicity::simplicity::bitcoin::{Amount, Denomination};
+use hal_simplicity::simplicity::elements;
 use hal_simplicity::simplicity::elements::hashes::sha256;
 use hal_simplicity::simplicity::elements::hex::FromHex;
 use hal_simplicity::simplicity::elements::taproot::ControlBlock;
-use hal_simplicity::simplicity::elements::{self, confidential, Transaction};
+
 use hal_simplicity::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use hal_simplicity::simplicity::Cmr;
 
@@ -26,50 +27,6 @@ struct SighashInfo {
 	valid_signature: Option<bool>,
 }
 
-fn parse_elements_utxo(s: &str) -> Result<ElementsUtxo, Error> {
-	let parts: Vec<&str> = s.split(':').collect();
-	if parts.len() != 3 {
-		return Err(Error {
-			context: "parsing input UTXO",
-			error: "expected format <scriptPubKey>:<asset>:<value>".to_string(),
-		});
-	}
-	// Parse scriptPubKey
-	let script_pubkey: elements::Script =
-		parts[0].parse().result_context("parsing scriptPubKey hex")?;
-
-	// Parse asset - try as explicit AssetId first, then as confidential commitment
-	let asset = if parts[1].len() == 64 {
-		// 32 bytes = explicit AssetId
-		let asset_id: elements::AssetId = parts[1].parse().result_context("parsing asset hex")?;
-		confidential::Asset::Explicit(asset_id)
-	} else {
-		// Parse anything except 32 bytes as a confidential commitment (which must be 33 bytes)
-		let commitment_bytes =
-			Vec::from_hex(parts[1]).result_context("parsing asset commitment hex")?;
-		elements::confidential::Asset::from_commitment(&commitment_bytes)
-			.result_context("decoding asset commitment")?
-	};
-
-	// Parse value - try as BTC decimal first, then as confidential commitment
-	let value = if let Ok(btc_amount) = Amount::from_str_in(parts[2], Denomination::Bitcoin) {
-		// Explicit value in BTC
-		elements::confidential::Value::Explicit(btc_amount.to_sat())
-	} else {
-		// 33 bytes = confidential commitment
-		let commitment_bytes =
-			Vec::from_hex(parts[2]).result_context("parsing value commitment hex")?;
-		elements::confidential::Value::from_commitment(&commitment_bytes)
-			.result_context("decoding value commitment")?
-	};
-
-	Ok(ElementsUtxo {
-		script_pubkey,
-		asset,
-		value,
-	})
-}
-
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("sighash", "Compute signature hashes or signatures for use with Simplicity")
 		.args(&cmd::opts_networks())
@@ -80,7 +37,9 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.takes_value(true)
 				.required(true),
 			cmd::arg("cmr", "CMR of the input program (hex)").takes_value(true).required(true),
-			cmd::arg("control-block", "Taproot control block of the input program (hex)").takes_value(true).required(true),
+			cmd::arg("control-block", "Taproot control block of the input program (hex)")
+				.takes_value(true)
+				.required(false),
 			cmd::opt("genesis-hash", "genesis hash of the blockchain the transaction belongs to (hex)")
 				.short("g")
 				.required(false),
@@ -100,7 +59,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.short("i")
 				.multiple(true)
 				.number_of_values(1)
-				.required(true),
+				.required(false),
 		])
 }
 
@@ -108,12 +67,12 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let tx_hex = matches.value_of("tx").expect("tx mandatory");
 	let input_idx = matches.value_of("input-index").expect("input-idx is mandatory");
 	let cmr = matches.value_of("cmr").expect("cmr is mandatory");
-	let control_block = matches.value_of("control-block").expect("control-block is mandatory");
+	let control_block = matches.value_of("control-block");
 	let genesis_hash = matches.value_of("genesis-hash");
 	let secret_key = matches.value_of("secret-key");
 	let public_key = matches.value_of("public-key");
 	let signature = matches.value_of("signature");
-	let input_utxos: Vec<_> = matches.values_of("input-utxo").unwrap().collect();
+	let input_utxos: Option<Vec<_>> = matches.values_of("input-utxo").map(|vals| vals.collect());
 
 	match exec_inner(
 		tx_hex,
@@ -124,7 +83,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		secret_key,
 		public_key,
 		signature,
-		&input_utxos,
+		input_utxos.as_deref(),
 	) {
 		Ok(info) => cmd::print_output(matches, &info),
 		Err(e) => cmd::print_output(matches, &e),
@@ -136,34 +95,90 @@ fn exec_inner(
 	tx_hex: &str,
 	input_idx: &str,
 	cmr: &str,
-	control_block: &str,
+	control_block: Option<&str>,
 	genesis_hash: Option<&str>,
 	secret_key: Option<&str>,
 	public_key: Option<&str>,
 	signature: Option<&str>,
-	input_utxos: &[&str],
+	input_utxos: Option<&[&str]>,
 ) -> Result<SighashInfo, Error> {
 	let secp = Secp256k1::new();
+
+	// Attempt to decode transaction as PSET first. If it succeeds, we can extract
+	// a lot of information from it. If not, we assume the transaction is hex and
+	// will give the user an error corresponding to this.
+	let pset = tx_hex.parse::<PartiallySignedTransaction>().ok();
 
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let tx_bytes = Vec::from_hex(tx_hex).result_context("parsing transaction hex")?;
-	let tx: Transaction =
-		elements::encode::deserialize(&tx_bytes).result_context("decoding transaction")?;
+	let tx = match pset {
+		Some(ref pset) => pset.extract_tx().result_context("extracting transaction from PSET")?,
+		None => {
+			let tx_bytes = Vec::from_hex(tx_hex).result_context("parsing transaction hex")?;
+			elements::encode::deserialize(&tx_bytes).result_context("decoding transaction")?
+		}
+	};
 	let input_idx: u32 = input_idx.parse().result_context("parsing input-idx")?;
 	let cmr: Cmr = cmr.parse().result_context("parsing cmr")?;
 
-	let cb_bytes = Vec::from_hex(control_block).result_context("parsing control block hex")?;
-	// For txes from webide, the internal key in this control block will be the hardcoded
-	// value f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2
-	let control_block =
-		ControlBlock::from_slice(&cb_bytes).result_context("decoding control block")?;
+	// If the user specifies a control block, use it. Otherwise query the PSET.
+	let control_block = if let Some(cb) = control_block {
+		let cb_bytes = Vec::from_hex(cb).result_context("parsing control block hex")?;
+		// For txes from webide, the internal key in this control block will be the hardcoded
+		// value f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2
+		ControlBlock::from_slice(&cb_bytes).result_context("decoding control block")?
+	} else if let Some(ref pset) = pset {
+		let n_inputs = pset.n_inputs();
+		let input = pset
+			.inputs()
+			.get(input_idx as usize) // cast u32->usize probably fine
+			.ok_or_else(|| {
+				format!("index {} out-of-range for PSET with {} inputs", input_idx, n_inputs)
+			})
+			.result_context("parsing input index")?;
 
-	let input_utxos = input_utxos
-		.iter()
-		.map(|utxo_str| parse_elements_utxo(utxo_str))
-		.collect::<Result<Vec<_>, Error>>()?;
+		let mut control_block = None;
+		for (cb, script_ver) in &input.tap_scripts {
+			if script_ver.1 == simplicity::leaf_version() && &script_ver.0[..] == cmr.as_ref() {
+				control_block = Some(cb.clone());
+			}
+		}
+		match control_block {
+			Some(cb) => cb,
+			None => {
+				return Err(format!("could not find control block in PSET for CMR {}", cmr))
+					.result_context("finding control block")?
+			}
+		}
+	} else {
+		return Err("with a raw transaction, control-block must be provided")
+			.result_context("computing control block");
+	};
+
+	let input_utxos = if let Some(input_utxos) = input_utxos {
+		input_utxos
+			.iter()
+			.map(|utxo_str| super::parse_elements_utxo(utxo_str))
+			.collect::<Result<Vec<_>, Error>>()?
+	} else if let Some(ref pset) = pset {
+		pset.inputs()
+			.iter()
+			.enumerate()
+			.map(|(n, input)| match input.witness_utxo {
+				Some(ref utxo) => Ok(ElementsUtxo {
+					script_pubkey: utxo.script_pubkey.clone(),
+					asset: utxo.asset,
+					value: utxo.value,
+				}),
+				None => Err(format!("witness_utxo field not populated for input {n}")),
+			})
+			.collect::<Result<Vec<_>, _>>()
+			.result_context("extracting input UTXO information")?
+	} else {
+		return Err("with a raw transaction, input-utxos must be provided")
+			.result_context("computing control block");
+	};
 	assert_eq!(input_utxos.len(), tx.input.len());
 
 	// Default to Bitcoin blockhash.
