@@ -11,6 +11,7 @@ use super::UpdatedPset;
 
 use elements::schnorr::XOnlyPublicKey;
 use hal_simplicity::hal_simplicity::taproot_spend_info;
+use simplicity::hex::parse::FromHex as _;
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("update-input", "Attach UTXO data to a PSET input")
@@ -32,6 +33,13 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.short("c")
 				.takes_value(true)
 				.required(false),
+			cmd::opt(
+				"state",
+				"32-byte state commitment to put alongside the program when generating addresess (hex)",
+			)
+			.takes_value(true)
+			.short("s")
+			.required(false),
 			// FIXME add merkle path, needed to compute nontrivial control blocks
 		])
 }
@@ -43,8 +51,9 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	let internal_key = matches.value_of("internal-key");
 	let cmr = matches.value_of("cmr");
+	let state = matches.value_of("state");
 
-	match exec_inner(pset_b64, input_idx, input_utxo, internal_key, cmr) {
+	match exec_inner(pset_b64, input_idx, input_utxo, internal_key, cmr, state) {
 		Ok(info) => cmd::print_output(matches, &info),
 		Err(e) => cmd::print_output(matches, &e),
 	}
@@ -57,6 +66,7 @@ fn exec_inner(
 	input_utxo: &str,
 	internal_key: Option<&str>,
 	cmr: Option<&str>,
+	state: Option<&str>,
 ) -> Result<UpdatedPset, Error> {
 	let mut pset: elements::pset::PartiallySignedTransaction =
 		pset_b64.parse().result_context("decoding PSET")?;
@@ -87,6 +97,14 @@ fn exec_inner(
 			.result_context("input UTXO");
 	}
 
+	// FIXME state is meaningless without CMR; should we warn here
+	// FIXME also should we warn if you don't provide a CMR? seems like if you're calling `simplicity pset update-input`
+	//   you probably have a simplicity program right? maybe we should even provide a --no-cmr flag
+	let state = state
+		.map(<[u8; 32]>::from_hex)
+		.transpose()
+		.result_context("parsing 32-byte state commitment as hex")?;
+
 	let mut updated_values = vec![];
 	if let Some(internal_key) = internal_key {
 		updated_values.push("tap_internal_key");
@@ -97,7 +115,7 @@ fn exec_inner(
 			// Guess that the given program is the only Tapleaf. This is the case for addresses
 			// generated from the web IDE, and from `hal-simplicity simplicity info`, and for
 			// most "test" scenarios. We need to design an API to handle more general cases.
-			let spend_info = taproot_spend_info(internal_key, None, cmr);
+			let spend_info = taproot_spend_info(internal_key, state, cmr);
 			if spend_info.output_key().as_inner().serialize() != input_utxo.script_pubkey[2..] {
 				// If our guess was wrong, at least error out..
 				return Err(format!("CMR and internal key imply output key {}, which does not match input scriptPubKey {}", spend_info.output_key().as_inner(), input_utxo.script_pubkey))
