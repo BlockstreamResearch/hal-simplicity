@@ -4,6 +4,7 @@
 mod create;
 mod extract;
 mod finalize;
+mod run;
 mod update_input;
 
 use std::sync::Arc;
@@ -31,6 +32,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		.subcommand(self::create::cmd())
 		.subcommand(self::extract::cmd())
 		.subcommand(self::finalize::cmd())
+		.subcommand(self::run::cmd())
 		.subcommand(self::update_input::cmd())
 }
 
@@ -39,6 +41,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		("create", Some(m)) => self::create::exec(m),
 		("extract", Some(m)) => self::extract::exec(m),
 		("finalize", Some(m)) => self::finalize::exec(m),
+		("run", Some(m)) => self::run::exec(m),
 		("update-input", Some(m)) => self::update_input::exec(m),
 		(_, _) => unreachable!("clap prints help"),
 	};
