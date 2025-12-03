@@ -7,6 +7,7 @@ use super::{Error, ErrorExt as _};
 
 use hal_simplicity::hal_simplicity::{elements_address, Program};
 use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
+use simplicity::hex::parse::FromHex as _;
 
 use serde::Serialize;
 
@@ -42,20 +43,32 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 			cmd::arg("witness", "a hex encoding of all the witness data for the program")
 				.takes_value(true)
 				.required(false),
+			cmd::opt(
+				"state",
+				"32-byte state commitment to put alongside the program when generating addresess (hex)",
+			)
+			.takes_value(true)
+			.short("s")
+			.required(false),
 		])
 }
 
 pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness");
+	let state = matches.value_of("state");
 
-	match exec_inner(program, witness) {
+	match exec_inner(program, witness, state) {
 		Ok(info) => cmd::print_output(matches, &info),
 		Err(e) => cmd::print_output(matches, &e),
 	}
 }
 
-fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, Error> {
+fn exec_inner(
+	program: &str,
+	witness: Option<&str>,
+	state: Option<&str>,
+) -> Result<ProgramInfo, Error> {
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
@@ -73,6 +86,11 @@ fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, Error
 		x // binding needed for truly stupid borrowck reasons
 	});
 
+	let state = state
+		.map(<[u8; 32]>::from_hex)
+		.transpose()
+		.result_context("parsing 32-byte state commitment as hex")?;
+
 	Ok(ProgramInfo {
 		jets: "core",
 		commit_base64: program.commit_prog().to_string(),
@@ -80,10 +98,15 @@ fn exec_inner(program: &str, witness: Option<&str>) -> Result<ProgramInfo, Error
 		commit_decode: program.commit_prog().display_expr().to_string(),
 		type_arrow: program.commit_prog().arrow().to_string(),
 		cmr: program.cmr(),
-		liquid_address_unconf: elements_address(program.cmr(), &elements::AddressParams::LIQUID)
-			.to_string(),
+		liquid_address_unconf: elements_address(
+			program.cmr(),
+			state,
+			&elements::AddressParams::LIQUID,
+		)
+		.to_string(),
 		liquid_testnet_address_unconf: elements_address(
 			program.cmr(),
+			state,
 			&elements::AddressParams::LIQUID_TESTNET,
 		)
 		.to_string(),

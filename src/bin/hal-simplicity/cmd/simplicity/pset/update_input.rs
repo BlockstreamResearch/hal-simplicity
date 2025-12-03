@@ -97,7 +97,7 @@ fn exec_inner(
 			// Guess that the given program is the only Tapleaf. This is the case for addresses
 			// generated from the web IDE, and from `hal-simplicity simplicity info`, and for
 			// most "test" scenarios. We need to design an API to handle more general cases.
-			let spend_info = taproot_spend_info(internal_key, cmr);
+			let spend_info = taproot_spend_info(internal_key, None, cmr);
 			if spend_info.output_key().as_inner().serialize() != input_utxo.script_pubkey[2..] {
 				// If our guess was wrong, at least error out..
 				return Err(format!("CMR and internal key imply output key {}, which does not match input scriptPubKey {}", spend_info.output_key().as_inner(), input_utxo.script_pubkey))
