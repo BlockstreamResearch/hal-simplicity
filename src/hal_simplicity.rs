@@ -85,8 +85,8 @@ impl<J: Jet> Program<J> {
 	}
 
 	/// Accessor for the commitment-time program.
-	pub fn redeem_node(&self) -> Option<&RedeemNode<J>> {
-		self.redeem_prog.as_ref().map(Arc::as_ref)
+	pub fn redeem_node(&self) -> Option<&Arc<RedeemNode<J>>> {
+		self.redeem_prog.as_ref()
 	}
 }
 
