@@ -1077,7 +1077,7 @@ hal-simplicity-simplicity-info 0.1.0
 Parse a base64-encoded Simplicity program and decode it
 
 USAGE:
-    hal-simplicity simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] [OPTIONS] <program> [witness]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -1085,6 +1085,9 @@ FLAGS:
         --liquid             run in liquid mode
     -v, --verbose            print verbose logging output to stderr
     -y, --yaml               print output in YAML instead of JSON
+
+OPTIONS:
+    -s, --state <state>    32-byte state commitment to put alongside the program when generating addresess (hex)
 
 ARGS:
     <program>    a Simplicity program in base64
@@ -1103,7 +1106,7 @@ error: The following required arguments were not provided:
     <program>
 
 USAGE:
-    hal-simplicity simplicity info [FLAGS] <program> [witness]
+    hal-simplicity simplicity info [FLAGS] [OPTIONS] <program> [witness]
 
 For more information try --help
 ",
