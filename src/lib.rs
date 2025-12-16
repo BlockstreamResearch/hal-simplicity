@@ -1,7 +1,7 @@
 pub extern crate simplicity;
 
-#[allow(unused)]
-mod daemon;
+pub mod daemon;
+pub mod jsonrpc;
 
 pub mod address;
 pub mod block;
