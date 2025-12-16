@@ -1,5 +1,8 @@
 pub extern crate simplicity;
 
+#[allow(unused)]
+mod daemon;
+
 pub mod address;
 pub mod block;
 pub mod hal_simplicity;
