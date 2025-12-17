@@ -1,3 +1,4 @@
+mod actions;
 mod handler;
 
 use std::net::SocketAddr;
