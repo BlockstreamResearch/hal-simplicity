@@ -1,7 +1,7 @@
 use super::PsetError;
 use crate::daemon::actions::types::{PsetFinalizeRequest, PsetFinalizeResponse};
-use crate::hal_simplicity::Program;
 use crate::simplicity::jet;
+use crate::utils::hal_simplicity::Program;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

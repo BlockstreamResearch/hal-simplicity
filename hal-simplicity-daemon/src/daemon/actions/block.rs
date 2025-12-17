@@ -2,7 +2,7 @@ use elements::encode::{deserialize, serialize};
 use elements::{dynafed, Block, BlockExtData, BlockHeader};
 use thiserror::Error;
 
-use crate::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
+use crate::utils::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
 use crate::utils::{GetInfo, Network};
 
 use super::types::{BlockCreateRequest, BlockDecodeRequest};

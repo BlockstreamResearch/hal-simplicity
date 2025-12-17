@@ -52,8 +52,6 @@ impl HalSimplicityDaemon {
 
 	/// Start the daemon on a new thread
 	pub fn start(&mut self) -> Result<(), DaemonError> {
-		println!("Listening on http://{}", self.address);
-
 		let shutdown_tx = self.shutdown_tx.clone();
 		let rpc_service = self.rpc_service.clone();
 
@@ -71,18 +69,14 @@ impl HalSimplicityDaemon {
 							let io = TokioIo::new(stream);
 							let rpc_service_clone = rpc_service.clone();
 							tokio::task::spawn(async move {
-								if let Err(err) = http1::Builder::new()
+								http1::Builder::new()
 									.serve_connection(io, service_fn(move |req| {
 										handle_request(req, rpc_service_clone.clone())
 									}))
 									.await
-								{
-									eprintln!("Connection error: {:?}", err);
-								}
 							});
 						}
 						_ = shutdown_rx.recv() => {
-							println!("Server shutting down...");
 							break;
 						}
 					}

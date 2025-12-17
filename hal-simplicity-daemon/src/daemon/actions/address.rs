@@ -3,7 +3,10 @@ use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
 use thiserror::Error;
 
-use crate::{address::AddressInfo, utils::Network};
+use crate::utils::{
+	address::{AddressInfo, Addresses},
+	Network,
+};
 
 use super::types::AddressCreateRequest;
 
@@ -31,7 +34,7 @@ pub enum AddressError {
 	AddressParse(elements::address::AddressError),
 }
 
-pub fn create(req: AddressCreateRequest) -> Result<crate::address::Addresses, AddressError> {
+pub fn create(req: AddressCreateRequest) -> Result<Addresses, AddressError> {
 	let network =
 		req.network.as_deref().map(parse_network).transpose()?.unwrap_or(Network::ElementsRegtest);
 
@@ -45,11 +48,11 @@ pub fn create(req: AddressCreateRequest) -> Result<crate::address::Addresses, Ad
 
 	if let Some(pubkey_hex) = req.pubkey {
 		let pubkey: PublicKey = pubkey_hex.parse().map_err(AddressError::PubkeyInvalid)?;
-		Ok(crate::address::Addresses::from_pubkey(&pubkey, blinder, network))
+		Ok(Addresses::from_pubkey(&pubkey, blinder, network))
 	} else if let Some(script_hex) = req.script {
 		let script_bytes = hex::decode(&script_hex).map_err(AddressError::ScriptHex)?;
 		let script = script_bytes.into();
-		Ok(crate::address::Addresses::from_script(&script, blinder, network))
+		Ok(Addresses::from_script(&script, blinder, network))
 	} else {
 		Err(AddressError::MissingInput)
 	}

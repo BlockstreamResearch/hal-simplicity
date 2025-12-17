@@ -13,10 +13,10 @@ use elements::{
 use hex::FromHexError;
 use thiserror::Error;
 
-use crate::confidential::{
+use crate::utils::confidential::{
 	ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialType, ConfidentialValueInfo,
 };
-use crate::tx::{
+use crate::utils::tx::{
 	AssetIssuanceInfo, InputInfo, InputScriptInfo, InputWitnessInfo, OutputInfo, OutputScriptInfo,
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };

@@ -1,3 +1,9 @@
+pub mod address;
+pub mod block;
+pub mod confidential;
+pub mod hal_simplicity;
+pub mod tx;
+
 use elements::AddressParams;
 use serde::{Deserialize, Serialize};
 

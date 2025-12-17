@@ -1,6 +1,6 @@
 use super::PsetError;
 use crate::daemon::actions::types::{PsetUpdateInputRequest, PsetUpdateInputResponse};
-use crate::hal_simplicity::taproot_spend_info;
+use crate::utils::hal_simplicity::taproot_spend_info;
 use core::str::FromStr;
 use elements::bitcoin::secp256k1;
 use elements::schnorr::XOnlyPublicKey;

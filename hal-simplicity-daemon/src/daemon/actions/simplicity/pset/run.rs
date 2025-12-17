@@ -1,9 +1,9 @@
 use super::PsetError;
 use crate::daemon::actions::types::{JetCall, PsetRunRequest, PsetRunResponse};
-use crate::hal_simplicity::Program;
 use crate::simplicity::bit_machine::{BitMachine, ExecTracker};
 use crate::simplicity::jet;
 use crate::simplicity::{Cmr, Ihr};
+use crate::utils::hal_simplicity::Program;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

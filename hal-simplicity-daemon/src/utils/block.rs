@@ -2,10 +2,10 @@ use elements::hashes::sha256;
 use elements::{dynafed, Block, BlockExtData, BlockHash, BlockHeader, TxMerkleNode, Txid};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{GetInfo, Network};
+use super::{GetInfo, Network};
 use hal::HexBytes;
 
-use crate::tx::TransactionInfo;
+use super::tx::TransactionInfo;
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

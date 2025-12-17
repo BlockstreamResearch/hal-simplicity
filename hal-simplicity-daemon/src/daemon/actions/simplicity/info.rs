@@ -1,6 +1,6 @@
 use crate::daemon::actions::types::{RedeemInfo, SimplicityInfoRequest, SimplicityInfoResponse};
-use crate::hal_simplicity::{elements_address, Program};
 use crate::simplicity::jet;
+use crate::utils::hal_simplicity::{elements_address, Program};
 use simplicity::hex::parse::FromHex as _;
 use thiserror::Error;
 

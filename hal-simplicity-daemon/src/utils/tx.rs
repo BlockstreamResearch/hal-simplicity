@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use hal::HexBytes;
 
-use crate::utils::{GetInfo, Network};
+use super::{GetInfo, Network};
 
-use crate::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
+use super::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 
 const BTCNET: elements::bitcoin::Network = elements::bitcoin::Network::Bitcoin;
 
