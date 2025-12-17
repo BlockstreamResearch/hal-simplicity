@@ -6,6 +6,8 @@ use serde_json::Value;
 use std::time::Duration;
 use thiserror::Error;
 
+const DEFAULT_DAEMON_URL: &str = "http://localhost:28579";
+
 /// JSON-RPC client errors
 #[derive(Debug, Error)]
 pub enum ClientError {
@@ -46,7 +48,7 @@ impl HalSimplicity {
 
 	/// Create a client with default URL (http://localhost:28579)
 	pub fn default() -> Result<Self, ClientError> {
-		Self::new("http://localhost:28579".to_string())
+		Self::new(DEFAULT_DAEMON_URL.to_string())
 	}
 
 	/// Get next request ID
@@ -97,14 +99,6 @@ impl HalSimplicity {
 		})?;
 
 		Ok(serde_json::from_value(result)?)
-	}
-
-	/// Check if the daemon is reachable
-	pub fn ping(&self) -> Result<(), ClientError> {
-		// Try to generate a keypair as a ping (lightweight operation)
-		// We could use any RPC method, but keypair_generate is simple
-		let _result = self.keypair_generate()?;
-		Ok(())
 	}
 
 	/// Get the daemon URL
