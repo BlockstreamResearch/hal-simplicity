@@ -1,5 +1,5 @@
-use crate::daemon::actions::types::{RedeemInfo, SimplicityInfoRequest, SimplicityInfoResponse};
 use crate::simplicity::jet;
+use crate::types::{RedeemInfo, SimplicityInfoRequest, SimplicityInfoResponse};
 use crate::utils::hal_simplicity::{elements_address, Program};
 use simplicity::hex::parse::FromHex as _;
 use thiserror::Error;

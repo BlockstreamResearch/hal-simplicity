@@ -1,5 +1,5 @@
 use super::PsetError;
-use crate::daemon::actions::types::{PsetExtractRequest, PsetExtractResponse};
+use crate::types::{PsetExtractRequest, PsetExtractResponse};
 use elements::encode::serialize_hex;
 use thiserror::Error;
 

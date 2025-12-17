@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::utils::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
 use crate::utils::{GetInfo, Network};
 
-use super::types::{BlockCreateRequest, BlockDecodeRequest};
+use crate::types::{BlockCreateRequest, BlockDecodeRequest};
 
 #[derive(Debug, Error)]
 pub enum BlockError {

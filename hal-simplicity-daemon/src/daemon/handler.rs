@@ -1,7 +1,8 @@
 use crate::jsonrpc::{ErrorCode, JsonRpcService, RpcError, RpcHandler};
 use serde_json::Value;
 
-use super::actions::{self, types::*};
+use super::actions;
+use crate::types::*;
 
 /// RPC method names
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

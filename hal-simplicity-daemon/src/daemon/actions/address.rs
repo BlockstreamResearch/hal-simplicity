@@ -8,7 +8,7 @@ use crate::utils::{
 	Network,
 };
 
-use super::types::AddressCreateRequest;
+use crate::types::AddressCreateRequest;
 
 #[derive(Debug, Error)]
 pub enum AddressError {

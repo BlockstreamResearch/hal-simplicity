@@ -1,5 +1,3 @@
-pub mod types;
-
 pub mod address;
 pub mod block;
 pub mod keypair;

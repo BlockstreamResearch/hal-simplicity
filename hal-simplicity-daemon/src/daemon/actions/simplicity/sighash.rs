@@ -1,4 +1,3 @@
-use crate::daemon::actions::types::{SimplicitySighashRequest, SimplicitySighashResponse};
 use crate::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey,
 };
@@ -7,6 +6,7 @@ use crate::simplicity::elements::hex::FromHex;
 use crate::simplicity::elements::taproot::ControlBlock;
 use crate::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::simplicity::Cmr;
+use crate::types::{SimplicitySighashRequest, SimplicitySighashResponse};
 use elements::bitcoin::secp256k1;
 use elements::hashes::Hash as _;
 use elements::pset::PartiallySignedTransaction;

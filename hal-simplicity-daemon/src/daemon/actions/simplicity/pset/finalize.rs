@@ -1,6 +1,6 @@
 use super::PsetError;
-use crate::daemon::actions::types::{PsetFinalizeRequest, PsetFinalizeResponse};
 use crate::simplicity::jet;
+use crate::types::{PsetFinalizeRequest, PsetFinalizeResponse};
 use crate::utils::hal_simplicity::Program;
 use thiserror::Error;
 

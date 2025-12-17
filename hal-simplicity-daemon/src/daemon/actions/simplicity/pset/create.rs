@@ -1,5 +1,5 @@
 use super::PsetError;
-use crate::daemon::actions::types::{PsetCreateRequest, PsetCreateResponse};
+use crate::types::{PsetCreateRequest, PsetCreateResponse};
 use elements::confidential;
 use elements::pset::PartiallySignedTransaction;
 use elements::{Address, AssetId, OutPoint, Transaction, TxIn, TxOut, Txid};

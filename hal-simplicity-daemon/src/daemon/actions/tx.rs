@@ -23,7 +23,7 @@ use crate::utils::tx::{
 
 use crate::utils::{GetInfo, Network};
 
-use super::types::{TxCreateRequest, TxDecodeRequest};
+use crate::types::{TxCreateRequest, TxDecodeRequest};
 
 #[derive(Debug, Error)]
 pub enum TxError {
