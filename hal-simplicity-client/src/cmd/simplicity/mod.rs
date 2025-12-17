@@ -6,10 +6,10 @@ mod pset;
 mod sighash;
 
 use crate::cmd;
-use hal_simplicity::simplicity::bitcoin::{Amount, Denomination};
-use hal_simplicity::simplicity::elements::confidential;
-use hal_simplicity::simplicity::elements::hex::FromHex as _;
-use hal_simplicity::simplicity::jet::elements::ElementsUtxo;
+use hal_simplicity_daemon::simplicity::bitcoin::{Amount, Denomination};
+use hal_simplicity_daemon::simplicity::elements::confidential;
+use hal_simplicity_daemon::simplicity::elements::hex::FromHex as _;
+use hal_simplicity_daemon::simplicity::jet::elements::ElementsUtxo;
 
 use serde::Serialize;
 

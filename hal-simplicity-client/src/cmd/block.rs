@@ -5,7 +5,7 @@ use elements::{dynafed, Block, BlockExtData, BlockHeader};
 
 use crate::cmd;
 use crate::cmd::tx::create_transaction;
-use hal_simplicity::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
+use hal_simplicity_daemon::utils::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
 use log::warn;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {

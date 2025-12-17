@@ -5,8 +5,8 @@ use crate::cmd;
 
 use super::{Error, ErrorExt as _};
 
-use hal_simplicity::hal_simplicity::{elements_address, Program};
-use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
+use hal_simplicity_daemon::simplicity::{jet, Amr, Cmr, Ihr};
+use hal_simplicity_daemon::utils::hal_simplicity::{elements_address, Program};
 use simplicity::hex::parse::FromHex as _;
 
 use serde::Serialize;

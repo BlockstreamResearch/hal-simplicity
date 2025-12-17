@@ -175,9 +175,9 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "bumpalo"
-version = "3.19.1"
+version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
+checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "byteorder"
@@ -338,33 +338,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "hal-simplicity-client"
+name = "hal-simplicity"
 version = "0.1.0"
 dependencies = [
- "chrono",
- "clap",
- "elements",
- "fern",
- "hal",
- "hal-simplicity-daemon",
- "hex",
- "http-body-util",
- "hyper",
- "hyper-util",
- "log",
- "serde",
- "serde_json",
- "serde_yaml",
- "simplicity-lang",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "hal-simplicity-daemon"
-version = "0.1.0"
-dependencies = [
- "chrono",
  "clap",
  "elements",
  "fern",

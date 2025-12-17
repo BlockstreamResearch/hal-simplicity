@@ -7,16 +7,16 @@ use super::{Error, ErrorExt as _};
 
 use elements::hashes::Hash as _;
 use elements::pset::PartiallySignedTransaction;
-use hal_simplicity::simplicity::bitcoin::secp256k1::{
+use hal_simplicity_daemon::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey,
 };
-use hal_simplicity::simplicity::elements;
-use hal_simplicity::simplicity::elements::hashes::sha256;
-use hal_simplicity::simplicity::elements::hex::FromHex;
-use hal_simplicity::simplicity::elements::taproot::ControlBlock;
+use hal_simplicity_daemon::simplicity::elements;
+use hal_simplicity_daemon::simplicity::elements::hashes::sha256;
+use hal_simplicity_daemon::simplicity::elements::hex::FromHex;
+use hal_simplicity_daemon::simplicity::elements::taproot::ControlBlock;
 
-use hal_simplicity::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
-use hal_simplicity::simplicity::Cmr;
+use hal_simplicity_daemon::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
+use hal_simplicity_daemon::simplicity::Cmr;
 
 use serde::Serialize;
 

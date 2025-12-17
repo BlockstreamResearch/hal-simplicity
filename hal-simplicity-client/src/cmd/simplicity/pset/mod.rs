@@ -16,9 +16,9 @@ use elements::hashes::Hash as _;
 use elements::pset::PartiallySignedTransaction;
 use elements::taproot::ControlBlock;
 use elements::Script;
-use hal_simplicity::simplicity::elements::Transaction;
-use hal_simplicity::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
-use hal_simplicity::simplicity::Cmr;
+use hal_simplicity_daemon::simplicity::elements::Transaction;
+use hal_simplicity_daemon::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
+use hal_simplicity_daemon::simplicity::Cmr;
 use serde::Serialize;
 
 #[derive(Serialize)]

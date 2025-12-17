@@ -3,7 +3,7 @@ use std::process;
 
 pub use elements::bitcoin;
 
-pub use hal_simplicity::utils::{GetInfo, Network};
+pub use hal_simplicity_daemon::utils::{GetInfo, Network};
 
 pub mod cmd;
 

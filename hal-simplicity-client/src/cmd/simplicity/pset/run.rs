@@ -3,10 +3,10 @@
 
 use crate::cmd;
 
-use hal_simplicity::hal_simplicity::Program;
-use hal_simplicity::simplicity::bit_machine::{BitMachine, ExecTracker};
-use hal_simplicity::simplicity::jet;
-use hal_simplicity::simplicity::{Cmr, Ihr};
+use hal_simplicity_daemon::simplicity::bit_machine::{BitMachine, ExecTracker};
+use hal_simplicity_daemon::simplicity::jet;
+use hal_simplicity_daemon::simplicity::{Cmr, Ihr};
+use hal_simplicity_daemon::utils::hal_simplicity::Program;
 
 use super::super::{Error, ErrorExt as _};
 

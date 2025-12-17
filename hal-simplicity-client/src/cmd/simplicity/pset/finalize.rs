@@ -3,8 +3,8 @@
 
 use crate::cmd;
 
-use hal_simplicity::hal_simplicity::Program;
-use hal_simplicity::simplicity::jet;
+use hal_simplicity_daemon::simplicity::jet;
+use hal_simplicity_daemon::utils::hal_simplicity::Program;
 
 use super::super::{Error, ErrorExt as _};
 use super::UpdatedPset;

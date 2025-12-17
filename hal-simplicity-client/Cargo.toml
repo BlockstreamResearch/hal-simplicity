@@ -1,20 +1,22 @@
 [package]
-name = "hal-simplicity-daemon"
+name = "hal-simplicity-client"
 version = "0.1.0"
 edition = "2021"
 authors = ["Steven Roose <steven@stevenroose.org>", "Andrew Poelstra <apoelstra@blockstream.com>"]
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/hal-simplicity/"
 repository = "https://github.com/BlockstreamResearch/hal-simplicity/"
-description = "hal-simplicity-daemon: a Simplicity extension daemon for hal"
+description = "hal-simplicity: a Simplicity extension of hal"
 keywords = [ "crypto", "bitcoin", "elements", "liquid", "simplicity" ]
 readme = "README.md"
 
-[lib]
-name = "hal_simplicity_daemon"
-path = "src/lib.rs"
+# [lib]
+# name = "hal_simplicity_daemon"
+# path = "src/lib.rs"
 
 [dependencies]
+hal-simplicity-daemon = { path = "../hal-simplicity-daemon" }
+
 hal = "0.10.0"
 clap = "2.32"
 log = "0.4.5"

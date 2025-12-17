@@ -10,7 +10,7 @@ use super::super::{Error, ErrorExt as _};
 use super::UpdatedPset;
 
 use elements::schnorr::XOnlyPublicKey;
-use hal_simplicity::hal_simplicity::taproot_spend_info;
+use hal_simplicity_daemon::utils::hal_simplicity::taproot_spend_info;
 use simplicity::hex::parse::FromHex as _;
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
