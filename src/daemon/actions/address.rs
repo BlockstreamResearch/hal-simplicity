@@ -3,7 +3,7 @@ use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
 use thiserror::Error;
 
-use crate::{address::AddressInfo, Network};
+use crate::{address::AddressInfo, utils::Network};
 
 use super::types::AddressCreateRequest;
 

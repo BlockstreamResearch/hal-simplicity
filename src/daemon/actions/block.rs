@@ -3,7 +3,7 @@ use elements::{dynafed, Block, BlockExtData, BlockHeader};
 use thiserror::Error;
 
 use crate::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
-use crate::Network;
+use crate::utils::{GetInfo, Network};
 
 use super::types::{BlockCreateRequest, BlockDecodeRequest};
 
@@ -78,7 +78,7 @@ pub fn decode(req: BlockDecodeRequest) -> Result<serde_json::Value, BlockError> 
 	if req.txids.unwrap_or(false) {
 		let block: Block = deserialize(&raw_block).map_err(BlockError::BlockDeserialize)?;
 		let info = BlockInfo {
-			header: crate::GetInfo::get_info(&block.header, network),
+			header: GetInfo::get_info(&block.header, network),
 			txids: Some(block.txdata.iter().map(|t| t.txid()).collect()),
 			transactions: None,
 			raw_transactions: None,
@@ -92,7 +92,7 @@ pub fn decode(req: BlockDecodeRequest) -> Result<serde_json::Value, BlockError> 
 				block.header
 			}
 		};
-		let info = crate::GetInfo::get_info(&header, network);
+		let info = GetInfo::get_info(&header, network);
 		serde_json::to_value(&info).map_err(|e| BlockError::Serialize(format!("{}", e)))
 	}
 }

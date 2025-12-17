@@ -7,7 +7,9 @@ use elements::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{GetInfo, HexBytes, Network};
+use hal::HexBytes;
+
+use crate::utils::{GetInfo, Network};
 
 use crate::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 

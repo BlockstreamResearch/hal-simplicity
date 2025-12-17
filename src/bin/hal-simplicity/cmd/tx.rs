@@ -22,7 +22,7 @@ use hal_simplicity::tx::{
 	AssetIssuanceInfo, InputInfo, InputScriptInfo, InputWitnessInfo, OutputInfo, OutputScriptInfo,
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
-use hal_simplicity::Network;
+use hal_simplicity::utils::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("tx", "manipulate transactions")

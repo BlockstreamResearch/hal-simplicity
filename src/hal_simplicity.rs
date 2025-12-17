@@ -35,13 +35,13 @@ impl<J: Jet> Program<J> {
 	/// The canonical representation of witnesses is hex, but old versions of simc
 	/// (e.g. every released version, and master, as of 2025-10-25) output base64.
 	pub fn from_str(prog_b64: &str, wit_hex: Option<&str>) -> Result<Self, ParseError> {
-		let prog_bytes = crate::hex_or_base64(prog_b64).map_err(ParseError::Base64)?;
+		let prog_bytes = crate::utils::hex_or_base64(prog_b64).map_err(ParseError::Base64)?;
 		let iter = BitIter::new(prog_bytes.iter().copied());
 		let commit_prog = CommitNode::decode(iter).map_err(ParseError::Decode)?;
 
 		let redeem_prog = wit_hex
 			.map(|wit_hex| {
-				let wit_bytes = crate::hex_or_base64(wit_hex).map_err(ParseError::Base64)?;
+				let wit_bytes = crate::utils::hex_or_base64(wit_hex).map_err(ParseError::Base64)?;
 				let prog_iter = BitIter::new(prog_bytes.into_iter());
 				let wit_iter = BitIter::new(wit_bytes.into_iter());
 				RedeemNode::decode(prog_iter, wit_iter).map_err(ParseError::Decode)

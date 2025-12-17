@@ -20,7 +20,8 @@ use crate::tx::{
 	AssetIssuanceInfo, InputInfo, InputScriptInfo, InputWitnessInfo, OutputInfo, OutputScriptInfo,
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
-use crate::{GetInfo, Network};
+
+use crate::utils::{GetInfo, Network};
 
 use super::types::{TxCreateRequest, TxDecodeRequest};
 

@@ -2,7 +2,8 @@ use elements::hashes::sha256;
 use elements::{dynafed, Block, BlockExtData, BlockHash, BlockHeader, TxMerkleNode, Txid};
 use serde::{Deserialize, Serialize};
 
-use crate::{GetInfo, HexBytes, Network};
+use crate::utils::{GetInfo, Network};
+use hal::HexBytes;
 
 use crate::tx::TransactionInfo;
 
