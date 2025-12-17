@@ -50,41 +50,62 @@ impl HalSimplicityDaemon {
 		})
 	}
 
+	/// Core event loop that accepts connections and handles them
+	async fn run_event_loop(
+		listener: TcpListener,
+		rpc_service: Arc<JsonRpcService<DefaultRpcHandler>>,
+		mut shutdown_rx: broadcast::Receiver<()>,
+	) -> Result<(), DaemonError> {
+		loop {
+			tokio::select! {
+				Ok((stream, _)) = listener.accept() => {
+					let io = TokioIo::new(stream);
+					let rpc_service_clone = rpc_service.clone();
+					tokio::task::spawn(async move {
+						http1::Builder::new()
+							.serve_connection(io, service_fn(move |req| {
+								handle_request(req, rpc_service_clone.clone())
+							}))
+							.await
+					});
+				}
+				_ = shutdown_rx.recv() => {
+					break;
+				}
+			}
+		}
+
+		Ok(())
+	}
+
 	/// Start the daemon on a new thread
 	pub fn start(&mut self) -> Result<(), DaemonError> {
+		let address = self.address;
 		let shutdown_tx = self.shutdown_tx.clone();
 		let rpc_service = self.rpc_service.clone();
 
 		let runtime = tokio::runtime::Runtime::new()?;
-
-		let listener = runtime.block_on(async { TcpListener::bind(&self.address).await })?;
+		let listener = runtime.block_on(async { TcpListener::bind(&address).await })?;
 
 		std::thread::spawn(move || {
 			runtime.block_on(async move {
-				let mut shutdown_rx = shutdown_tx.subscribe();
-
-				loop {
-					tokio::select! {
-						Ok((stream, _)) = listener.accept() => {
-							let io = TokioIo::new(stream);
-							let rpc_service_clone = rpc_service.clone();
-							tokio::task::spawn(async move {
-								http1::Builder::new()
-									.serve_connection(io, service_fn(move |req| {
-										handle_request(req, rpc_service_clone.clone())
-									}))
-									.await
-							});
-						}
-						_ = shutdown_rx.recv() => {
-							break;
-						}
-					}
-				}
+				let shutdown_rx = shutdown_tx.subscribe();
+				let _ = Self::run_event_loop(listener, rpc_service, shutdown_rx).await;
 			});
 		});
 
 		Ok(())
+	}
+
+	/// Start the daemon and block the current thread
+	pub fn listen_blocking(self) -> Result<(), DaemonError> {
+		let runtime = tokio::runtime::Runtime::new()?;
+
+		runtime.block_on(async move {
+			let listener = TcpListener::bind(&self.address).await?;
+			let shutdown_rx = self.shutdown_tx.subscribe();
+			Self::run_event_loop(listener, self.rpc_service, shutdown_rx).await
+		})
 	}
 
 	/// Shutdown the daemon
