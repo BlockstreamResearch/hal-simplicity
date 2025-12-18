@@ -6,6 +6,10 @@ use serde_json::Value;
 use std::time::Duration;
 use thiserror::Error;
 
+#[cfg(feature = "embed_daemon")]
+use hal_simplicity_daemon::HalSimplicityDaemon;
+
+const DEFAULT_DAEMON_ADDRESS: &str = "127.0.0.1:28579";
 const DEFAULT_DAEMON_URL: &str = "http://localhost:28579";
 
 /// JSON-RPC client errors
@@ -25,6 +29,10 @@ pub enum ClientError {
 
 	#[error("Connection refused: daemon not running at {0}")]
 	ConnectionRefused(String),
+
+	#[cfg(feature = "embed_daemon")]
+	#[error("Daemon error: {0}")]
+	Daemon(#[from] hal_simplicity_daemon::daemon::DaemonError),
 }
 
 /// HAL Simplicity client for hal-simplicity-daemon
@@ -32,6 +40,8 @@ pub struct HalSimplicity {
 	client: Client,
 	url: String,
 	next_id: std::sync::atomic::AtomicU64,
+	#[cfg(feature = "embed_daemon")]
+	_daemon: Option<HalSimplicityDaemon>,
 }
 
 impl HalSimplicity {
@@ -43,12 +53,40 @@ impl HalSimplicity {
 			client,
 			url,
 			next_id: std::sync::atomic::AtomicU64::new(1),
+			#[cfg(feature = "embed_daemon")]
+			_daemon: None,
 		})
 	}
 
 	/// Create a client with default URL (http://localhost:28579)
+	#[cfg(not(feature = "embed_daemon"))]
 	pub fn default() -> Result<Self, ClientError> {
 		Self::new(DEFAULT_DAEMON_URL.to_string())
+	}
+
+	/// Create a client with embedded daemon (auto-started)
+	#[cfg(feature = "embed_daemon")]
+	pub fn default() -> Result<Self, ClientError> {
+		Self::with_embedded_daemon()
+	}
+
+	/// Create a client with an embedded daemon that auto-starts
+	#[cfg(feature = "embed_daemon")]
+	pub fn with_embedded_daemon() -> Result<Self, ClientError> {
+		let mut daemon = HalSimplicityDaemon::new(DEFAULT_DAEMON_ADDRESS)?;
+		daemon.start()?;
+
+		// Give the daemon a moment to start, crashea
+		std::thread::sleep(Duration::from_millis(100));
+
+		let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
+
+		Ok(Self {
+			client,
+			url: DEFAULT_DAEMON_URL.to_string(),
+			next_id: std::sync::atomic::AtomicU64::new(1),
+			_daemon: Some(daemon),
+		})
 	}
 
 	/// Get next request ID

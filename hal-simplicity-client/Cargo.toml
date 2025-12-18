@@ -14,8 +14,12 @@ readme = "README.md"
 name = "hal_simplicity"
 path = "src/lib.rs"
 
+[features]
+default = ["embed_daemon"]
+embed_daemon = ["hal-simplicity-daemon/daemon"]
+
 [dependencies]
-hal-simplicity-daemon = { path = "../hal-simplicity-daemon" }
+hal-simplicity-daemon = { path = "../hal-simplicity-daemon", default-features = false }
 
 hal = "0.10.0"
 clap = "2.32"
