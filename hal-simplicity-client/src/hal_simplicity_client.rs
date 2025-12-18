@@ -64,7 +64,7 @@ impl HalSimplicity {
 		Self::new(DEFAULT_DAEMON_URL.to_string())
 	}
 
-	/// Create a client with embedded daemon (auto-started)
+	/// Create a client with an embedded daemon that auto-starts
 	#[cfg(feature = "embed_daemon")]
 	pub fn default() -> Result<Self, ClientError> {
 		Self::with_embedded_daemon()
