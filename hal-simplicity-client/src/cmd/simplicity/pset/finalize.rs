@@ -24,8 +24,8 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(
-	matches: &clap::ArgMatches<'a>,
+pub fn exec(
+	matches: &clap::ArgMatches<'_>,
 	client: &hal_simplicity::hal_simplicity_client::HalSimplicity,
 ) {
 	let pset_b64 = matches.value_of("pset").expect("tx mandatory").to_string();

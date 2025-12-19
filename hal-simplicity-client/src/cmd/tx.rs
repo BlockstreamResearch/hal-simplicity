@@ -11,7 +11,7 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(cmd_decode())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn execute(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	match matches.subcommand() {
 		("create", Some(m)) => exec_create(m, client),
 		("decode", Some(m)) => exec_decode(m, client),
@@ -28,7 +28,7 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 	])
 }
 
-fn exec_create<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+fn exec_create(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let tx_info = cmd::arg_or_stdin(matches, "tx-info").to_string();
 	let raw_stdout = matches.is_present("raw-stdout");
 
@@ -48,7 +48,7 @@ fn cmd_decode<'a>() -> clap::App<'a, 'a> {
 		.args(&[cmd::opt_yaml(), cmd::arg("raw-tx", "the raw transaction in hex").required(false)])
 }
 
-fn exec_decode<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+fn exec_decode(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let hex_tx = cmd::arg_or_stdin(matches, "raw-tx").to_string();
 	let network = cmd::network(matches);
 

@@ -18,8 +18,8 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		.subcommand(self::update_input::cmd())
 }
 
-pub fn exec<'a>(
-	matches: &clap::ArgMatches<'a>,
+pub fn exec(
+	matches: &clap::ArgMatches<'_>,
 	client: &hal_simplicity::hal_simplicity_client::HalSimplicity,
 ) {
 	match matches.subcommand() {

@@ -10,7 +10,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		.args(&[cmd::arg("pset", "PSET to update (base64)").takes_value(true).required(true)])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn exec(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let pset_b64 = matches.value_of("pset").expect("tx mandatory").to_string();
 
 	match client.pset_extract(pset_b64) {

@@ -17,8 +17,8 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	])
 }
 
-pub fn exec<'a>(
-	matches: &clap::ArgMatches<'a>,
+pub fn exec(
+	matches: &clap::ArgMatches<'_>,
 	client: &hal_simplicity::hal_simplicity_client::HalSimplicity,
 ) {
 	let inputs_json = matches.value_of("inputs").expect("inputs mandatory").to_string();

@@ -39,7 +39,7 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 /// Try execute built-in command. Return false if no command found.
-fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) -> bool {
+fn execute_builtin(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) -> bool {
 	match matches.subcommand() {
 		("address", Some(m)) => cmd::address::execute(m, client),
 		("block", Some(m)) => cmd::block::execute(m, client),

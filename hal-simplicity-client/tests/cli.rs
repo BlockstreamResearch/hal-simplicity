@@ -25,7 +25,7 @@ where
 {
 	let args_string = || {
 		let v =
-			args.iter().map(|s| s.replace("\\", "\\\\").replace("\"", "\\\"")).collect::<Vec<_>>();
+			args.iter().map(|s| s.replace('\\', "\\\\").replace('"', "\\\"")).collect::<Vec<_>>();
 		v.join(" ")
 	};
 
@@ -54,7 +54,7 @@ fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: 
 
 	let args_string = || {
 		let v =
-			args.iter().map(|s| s.replace("\\", "\\\\").replace("\"", "\\\"")).collect::<Vec<_>>();
+			args.iter().map(|s| s.replace('\\', "\\\\").replace('"', "\\\"")).collect::<Vec<_>>();
 		v.join(" ")
 	};
 

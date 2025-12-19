@@ -64,7 +64,7 @@ pub fn opts_networks<'a>() -> Vec<clap::Arg<'a, 'a>> {
 	]
 }
 
-pub fn network<'a>(matches: &clap::ArgMatches<'a>) -> Network {
+pub fn network(matches: &clap::ArgMatches<'_>) -> Network {
 	if matches.is_present("elementsregtest") {
 		Network::ElementsRegtest
 	} else if matches.is_present("liquid") {
@@ -105,7 +105,7 @@ pub fn arg_or_stdin<'a>(matches: &'a clap::ArgMatches<'a>, arg: &str) -> Cow<'a,
 	}
 }
 
-pub fn print_output<'a, T: serde::Serialize>(matches: &clap::ArgMatches<'a>, out: &T) {
+pub fn print_output<T: serde::Serialize>(matches: &clap::ArgMatches<'_>, out: &T) {
 	if matches.is_present("yaml") {
 		serde_yaml::to_writer(::std::io::stdout(), &out).unwrap();
 	} else {

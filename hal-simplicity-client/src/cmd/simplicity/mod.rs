@@ -35,7 +35,7 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(self::sighash::cmd())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn execute(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	match matches.subcommand() {
 		("info", Some(m)) => self::info::exec(m, client),
 		("pset", Some(m)) => self::pset::exec(m, client),

@@ -11,7 +11,7 @@ pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 		.subcommand(cmd_inspect())
 }
 
-pub fn execute<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn execute(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	match matches.subcommand() {
 		("create", Some(m)) => exec_create(m, client),
 		("inspect", Some(m)) => exec_inspect(m, client),
@@ -28,7 +28,7 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 	])
 }
 
-fn exec_create<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+fn exec_create(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let network = cmd::network(matches);
 
 	let network_str = match network {
@@ -57,7 +57,7 @@ fn cmd_inspect<'a>() -> clap::App<'a, 'a> {
 		.args(&[cmd::opt_yaml(), cmd::arg("address", "the address").required(true)])
 }
 
-fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+fn exec_inspect(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let address_str = matches.value_of("address").expect("no address provided");
 
 	let result =

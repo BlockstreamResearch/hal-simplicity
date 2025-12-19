@@ -1,6 +1,6 @@
 //! Simple JSONRPC 2.0 implementation
 //!
-//! https://www.jsonrpc.org/specification
+//! <https://www.jsonrpc.org/specification>
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

@@ -40,7 +40,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn exec(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let tx_hex = matches.value_of("tx").expect("tx mandatory").to_string();
 	let input_idx_str = matches.value_of("input-index").expect("input-idx is mandatory");
 	let input_idx: u32 = input_idx_str.parse().expect("invalid input index");

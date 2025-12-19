@@ -23,7 +23,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
+pub fn exec(matches: &clap::ArgMatches<'_>, client: &HalSimplicity) {
 	let program = matches.value_of("program").expect("program is mandatory").to_string();
 	let witness = matches.value_of("witness").map(String::from);
 	let state = matches.value_of("state").map(String::from);
