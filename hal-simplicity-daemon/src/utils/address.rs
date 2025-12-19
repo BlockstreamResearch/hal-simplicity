@@ -2,6 +2,7 @@ use elements::bitcoin::{secp256k1, PublicKey};
 use elements::{Address, PubkeyHash, Script, ScriptHash, WPubkeyHash, WScriptHash};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::tx::OutputScriptInfo;
 use crate::utils::Network;
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
@@ -9,7 +10,7 @@ pub struct AddressInfo {
 	pub network: Network,
 	#[serde(rename = "type")]
 	pub type_: Option<String>,
-	pub script_pub_key: ::hal::tx::OutputScriptInfo,
+	pub script_pub_key: OutputScriptInfo,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub witness_program_version: Option<usize>,
 	#[serde(skip_serializing_if = "Option::is_none")]

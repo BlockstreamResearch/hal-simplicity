@@ -2,6 +2,7 @@ pub mod address;
 pub mod block;
 pub mod confidential;
 pub mod hal_simplicity;
+pub mod serde_helpers;
 pub mod tx;
 
 use crate::types::Network;

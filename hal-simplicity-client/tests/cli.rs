@@ -86,12 +86,15 @@ hal-simplicity 0.1.0
 hal-simplicity -- a Simplicity-enabled fork of hal
 
 USAGE:
-    hal-simplicity [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     address       work with addresses
@@ -116,7 +119,7 @@ fn cli_bad_flag() {
 error: Found argument '-?' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal-simplicity [FLAGS] <SUBCOMMAND>
+    hal-simplicity [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 For more information try --help
 ",
@@ -130,11 +133,14 @@ hal-simplicity-address 0.1.0
 work with addresses
 
 USAGE:
-    hal-simplicity address [FLAGS] <SUBCOMMAND>
+    hal-simplicity address [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     create     create addresses
@@ -163,16 +169,17 @@ FLAGS:
     -y, --yaml               print output in YAML instead of JSON
 
 OPTIONS:
-        --blinder <blinder>    a blinding pubkey in hex
-        --pubkey <pubkey>      a public key in hex
-        --script <script>      a script in hex
+        --blinder <blinder>          a blinding pubkey in hex
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
+        --pubkey <pubkey>            a public key in hex
+        --script <script>            a script in hex
 ";
 	// newline not escaped v
 	// FIXME yes, you can, with a script rather than pubkey. Also the script is not
 	// length-prefixed, which is a little surprising and should be documented
 	assert_cmd(
 		&["address", "create"],
-		"Execution failed: Can't create addresses without a pubkey\n",
+		"Execution failed: Can't create addresses without a pubkey or script\n",
 		"",
 	);
 	assert_cmd(&["address", "create", "-h"], expected_help, "");
@@ -194,7 +201,7 @@ For more information try --help
 	// FIXME stdout instead of stderr
 	assert_cmd(
 		&["address", "create", "--pubkey", ""],
-		"Execution failed: invalid pubkey: InvalidHexLength(0)\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid pubkey: pubkey string should be 66 or 130 digits long, got: 0\", data: None })\n",
 		"",
 	);
 	// x-only keys not supported
@@ -205,7 +212,7 @@ For more information try --help
 			"--pubkey",
 			"abababababababababababababababababababababababababababababababab",
 		],
-		"Execution failed: invalid pubkey: InvalidHexLength(64)\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid pubkey: pubkey string should be 66 or 130 digits long, got: 64\", data: None })\n",
 		"",
 	);
 	assert_cmd(
@@ -215,7 +222,7 @@ For more information try --help
 			"--pubkey",
 			"020000000000000000000000000000000000000000000000000000000000000000",
 		],
-		"Execution failed: invalid pubkey: Encoding(Secp256k1(InvalidPublicKey))\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid pubkey: string error\", data: None })\n",
 		"",
 	);
 	// uncompressed keys ok (though FIXME we should not produce p2wpkh or p2shwpkh addresses which are unspendable!!)
@@ -231,7 +238,7 @@ For more information try --help
 	// hybrid keys are not
 	assert_cmd(
 		&["address", "create", "--pubkey", "0700000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
-		"Execution failed: invalid pubkey: Encoding(InvalidKeyPrefix(7))\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid pubkey: string error\", data: None })\n",
 		"",
 	);
 	// compressed keys are ok, and the output is NOT the same as for uncompressed keys
@@ -258,40 +265,61 @@ For more information try --help
 			"--blinder",
 			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 		],
-		"Execution failed: Can't create addresses without a pubkey\n",
+		"Execution failed: Can't create addresses without a pubkey or script\n",
 		"",
 	);
+
 	// Invalid blinders all get the same generic message, and we don't even check for a pubkey
 	assert_cmd(
-		&["address", "create", "--blinder", ""],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		&[
+			"address",
+			"create",
+			"--pubkey",
+			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
+			"--blinder",
+			"",
+		],
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid blinder: malformed public key\", data: None })\n",
 		"",
 	);
+
 	assert_cmd(
-		&["address", "create", "--blinder", "02abcd"],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		&[
+			"address",
+			"create",
+			"--pubkey",
+			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
+			"--blinder",
+			"02abcd",
+		],
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid blinder: malformed public key\", data: None })\n",
 		"",
 	);
 	assert_cmd(
 		&[
 			"address",
 			"create",
+			"--pubkey",
+			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"--blinder",
 			"abababababababababababababababababababababababababababababababab",
 		],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid blinder: malformed public key\", data: None })\n",
 		"",
 	);
 	assert_cmd(
 		&[
 			"address",
 			"create",
+			"--pubkey",
+			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"--blinder",
 			"020000000000000000000000000000000000000000000000000000000000000000",
 		],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: failed to create address: Rpc(RpcError { code: -32603, message: \"Invalid blinder: malformed public key\", data: None })\n",
 		"",
 	);
+
 	// good pubkey, blinder
 	let good_key_output = r#"{
   "p2pkh": "CTErcmNXWAsDa1cYJT5uvKzn41nwDiYVjEYRfJdKa3P4657XGZtVWenzawNtFGiYs4oXKtGiou9XoH49",
@@ -300,7 +328,6 @@ For more information try --help
 }"#;
 	assert_cmd(
 		&[
-			"-v", // -v can go anywhere, and does nothing
 			"address",
 			"create",
 			"--pubkey",
@@ -311,6 +338,7 @@ For more information try --help
 		good_key_output,
 		"",
 	);
+
 	// FIXME we accept hybrid and uncompressed keys for blinders, which is probably wrong. But
 	//  observe that they all produce the same address, since internally they're just converted
 	//  to compressed keys.
@@ -332,6 +360,7 @@ For more information try --help
 		good_key_output,
 		"",
 	);
+
 	// FIXME if you provide a script as well as a pubkey then the script is ignored
 	assert_cmd(
 		&[
@@ -359,7 +388,7 @@ For more information try --help
 	);
 	// Verbose does nothing
 	assert_cmd(
-		&["address", "create", "-v", "--script", ""],
+		&["address", "create", "--script", ""],
 		r#"{
   "p2sh": "XToMocNywBYNSiXUe5xvoa2naAps9Ek1hq",
   "p2wsh": "ert1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2szaqlpq",
@@ -452,7 +481,7 @@ For more information try --help
 			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"--yaml",
 		],
-		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY",
+		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY\n",
 		"",
 	);
 
@@ -465,7 +494,7 @@ For more information try --help
 			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 			"-y",
 		],
-		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY",
+		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY\n",
 		"",
 	);
 
@@ -530,7 +559,7 @@ For more information try --help
 			"--liquid",
 			"--yaml",
 		],
-		"---\np2pkh: Pz92mHqA9CEtdFTcpZf6su8TSQ2tysQMCb\np2wpkh: ex1qr7z8s0phhs4v4v968cmhu2jcemkyllt0d2tr9h\np2shwpkh: Gz1wfCqSg5BntkFYcYSVMkpBck5wu6ZcEK",
+		"---\np2pkh: Pz92mHqA9CEtdFTcpZf6su8TSQ2tysQMCb\np2wpkh: ex1qr7z8s0phhs4v4v968cmhu2jcemkyllt0d2tr9h\np2shwpkh: Gz1wfCqSg5BntkFYcYSVMkpBck5wu6ZcEK\n",
 		"",
 	);
 
@@ -544,7 +573,7 @@ For more information try --help
 			"--liquid",
 			"-y",
 		],
-		"---\np2pkh: Pz92mHqA9CEtdFTcpZf6su8TSQ2tysQMCb\np2wpkh: ex1qr7z8s0phhs4v4v968cmhu2jcemkyllt0d2tr9h\np2shwpkh: Gz1wfCqSg5BntkFYcYSVMkpBck5wu6ZcEK",
+		"---\np2pkh: Pz92mHqA9CEtdFTcpZf6su8TSQ2tysQMCb\np2wpkh: ex1qr7z8s0phhs4v4v968cmhu2jcemkyllt0d2tr9h\np2shwpkh: Gz1wfCqSg5BntkFYcYSVMkpBck5wu6ZcEK\n",
 		"",
 	);
 
@@ -558,7 +587,7 @@ For more information try --help
 			"-r",
 			"-y",
 		],
-		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY",
+		"---\np2pkh: 2dcJQ2ctSXJirCQH3BEwqCDaVUBtoVCf2Pg\np2wpkh: ert1qr7z8s0phhs4v4v968cmhu2jcemkyllt0hcpm6d\np2shwpkh: XUBf77ZpEZsLLMGfVeRxpGcWGuMuS72DcY\n",
 		"",
 	);
 
@@ -591,12 +620,15 @@ hal-simplicity-address-inspect 0.1.0
 inspect addresses
 
 USAGE:
-    hal-simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] [OPTIONS] <address>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
     -y, --yaml       print output in YAML instead of JSON
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 ARGS:
     <address>    the address
@@ -611,7 +643,7 @@ ARGS:
     <address>
 
 USAGE:
-    hal-simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] [OPTIONS] <address>
 
 For more information try --help
 ",
@@ -623,19 +655,19 @@ For more information try --help
 	// FIXME stdout instead of stderr
 	assert_cmd(
 		&["address", "inspect", ""],
-		"Execution failed: invalid address format: Base58(TooShort(TooShortError { length: 0 }))\n",
+		"Execution failed: failed to inspect address: Rpc(RpcError { code: -32603, message: \"Invalid address format: base58 error: too short\", data: None })\n",
 		"",
 	);
 	// FIXME this error is absolutely terrible
 	assert_cmd(
 		&["address", "inspect", "bc1q7z3dshje7e4tftag5c3w7e85pr00r6cq34khh8"],
-		"Execution failed: invalid address format: Base58(Decode(InvalidCharacterError { invalid: 48 }))\n",
+		"Execution failed: failed to inspect address: Rpc(RpcError { code: -32603, message: \"Invalid address format: base58 error: decode\", data: None })\n",
 		"",
 	);
 	// FIXME this one is possibly even worse
 	assert_cmd(
 		&["address", "inspect", "1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N"],
-		"Execution failed: invalid address format: InvalidAddress(\"1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N\")\n",
+		"Execution failed: failed to inspect address: Rpc(RpcError { code: -32603, message: \"Invalid address format: was unable to parse the address: 1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N\", data: None })\n",
 		"",
 	);
 	// liquid addresses ok
@@ -709,9 +741,8 @@ For more information try --help
 }"#,
 		"",
 	);
-	// -v does nothing
 	assert_cmd(
-		&["-v", "address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
+		&["address", "inspect", "2djKtKaiMagUCNTcuwx8ZdZsucUr3tt4WQu"],
 		r#"{
   "network": "elementsregtest",
   "type": "p2pkh",
@@ -732,7 +763,8 @@ type: p2pkh
 script_pub_key:
   hex: 76a9146c95622b280be97792ec1b3505700f9e674cf50988ac
   asm: OP_DUP OP_HASH160 OP_PUSHBYTES_20 6c95622b280be97792ec1b3505700f9e674cf509 OP_EQUALVERIFY OP_CHECKSIG
-pubkey_hash: 6c95622b280be97792ec1b3505700f9e674cf509"#,
+pubkey_hash: 6c95622b280be97792ec1b3505700f9e674cf509
+"#,
 		"",
 	);
 	assert_cmd(
@@ -742,7 +774,7 @@ pubkey_hash: 6c95622b280be97792ec1b3505700f9e674cf509"#,
 error: Found argument '' which wasn't expected, or isn't valid in this context
 
 USAGE:
-    hal-simplicity address inspect [FLAGS] <address>
+    hal-simplicity address inspect [FLAGS] [OPTIONS] <address>
 
 For more information try --help
 ",
@@ -756,11 +788,14 @@ hal-simplicity-block 0.1.0
 manipulate blocks
 
 USAGE:
-    hal-simplicity block [FLAGS] <SUBCOMMAND>
+    hal-simplicity block [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     create    create a raw block from JSON
@@ -779,12 +814,15 @@ hal-simplicity-block-create 0.1.0
 create a raw block from JSON
 
 USAGE:
-    hal-simplicity block create [FLAGS] [block-info]
+    hal-simplicity block create [FLAGS] [OPTIONS] [block-info]
 
 FLAGS:
     -h, --help          Prints help information
     -r, --raw-stdout    output the raw bytes of the result to stdout
     -v, --verbose       print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 ARGS:
     <block-info>    the block info in JSON
@@ -796,8 +834,8 @@ ARGS:
 	assert_cmd(&["block", "create", "--help", "xyz"], expected_help, "");
 
 	// TODO this was as far as I got trying to find a valid input
-	assert_cmd(&["block", "create", ""], "Execution failed: invaid json JSON input: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(&["block", "create", ""], "Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Failed to parse block info JSON: EOF while parsing a value at line 1 column 0\", data: None })\n", "");
+	assert_cmd(&["block", "create", "{}"], "Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Failed to parse block info JSON: missing field `header` at line 1 column 2\", data: None })\n", "");
 	assert_cmd(
 		&[
 			"block",
@@ -813,10 +851,10 @@ ARGS:
 			}
 		 }"#,
 		],
-		"Execution failed: missing challenge\n",
+		"Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Missing legacy_challenge in block header\", data: None })\n",
 		"",
 	);
-	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(&["block", "create", "{}"], "Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Failed to parse block info JSON: missing field `header` at line 1 column 2\", data: None })\n", "");
 	// FIXME this error is awful; the actual field it wants is called `dynafed_current`
 	assert_cmd(
 		&[
@@ -833,7 +871,7 @@ ARGS:
 			}
 		 }"#,
 		],
-		"Execution failed: missing current params\n",
+		"Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Missing dynafed_current in block header\", data: None })\n",
 		"",
 	);
 
@@ -869,25 +907,21 @@ ARGS:
 	// Also, as always, these errors show up on stdout instead of stderr..
 	assert_cmd(
 		&["block", "create", &header_json.replace("%TRANSACTIONS%", "")],
-		"Execution failed: No transactions provided.\n",
+		"Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"No transactions provided\", data: None })\n",
 		"",
 	);
 	assert_cmd(
-		&[
-			"block",
-			"create",
-			&header_json.replace("%TRANSACTIONS%", ", \"transactions\": []"),
-		],
-		"010000808450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c048450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c04640000000a00000001220020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c880500007e755ded4e96bdcc0f5db0f6d21a46e3c91ab474f1a8c95a04ad3452e8600fff000000",
+		&["block", "create", &header_json.replace("%TRANSACTIONS%", ", \"transactions\": []")],
+		r#"{
+  "raw_block": "010000808450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c048450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c04640000000a00000001220020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c880500007e755ded4e96bdcc0f5db0f6d21a46e3c91ab474f1a8c95a04ad3452e8600fff000000"
+}"#,
 		"",
 	);
 	assert_cmd(
-		&[
-			"block",
-			"create",
-			&header_json.replace("%TRANSACTIONS%", ", \"raw_transactions\": []"),
-		],
-		"010000808450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c048450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c04640000000a00000001220020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c880500007e755ded4e96bdcc0f5db0f6d21a46e3c91ab474f1a8c95a04ad3452e8600fff000000",
+		&["block", "create", &header_json.replace("%TRANSACTIONS%", ", \"raw_transactions\": []")],
+		r#"{
+  "raw_block": "010000808450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c048450600df2c5802c61b23a9ba108dbe9259ce0de733bb8ee398f384518f16c04640000000a00000001220020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c880500007e755ded4e96bdcc0f5db0f6d21a46e3c91ab474f1a8c95a04ad3452e8600fff000000"
+}"#,
 		"",
 	);
 	assert_cmd(
@@ -897,7 +931,7 @@ ARGS:
 			&header_json
 				.replace("%TRANSACTIONS%", ", \"transactions\": [], \"raw_transactions\": []"),
 		],
-		"Execution failed: Can't provide transactions both in JSON and raw.\n",
+		"Execution failed: failed to create block: Rpc(RpcError { code: -32603, message: \"Cannot provide transactions both in JSON and raw\", data: None })\n",
 		"",
 	);
 
@@ -923,7 +957,7 @@ hal-simplicity-block-decode 0.1.0
 decode a raw block to JSON
 
 USAGE:
-    hal-simplicity block decode [FLAGS] [raw-block]
+    hal-simplicity block decode [FLAGS] [OPTIONS] [raw-block]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -932,6 +966,9 @@ FLAGS:
         --txids              provide transactions IDs instead of full transactions
     -v, --verbose            print verbose logging output to stderr
     -y, --yaml               print output in YAML instead of JSON
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 ARGS:
     <raw-block>    the raw block in hex
@@ -943,16 +980,16 @@ ARGS:
 	assert_cmd(&["block", "decode", "--help", "xyz"], expected_help, "");
 
 	// FIXME this error message is awful, and it's on stdout
-	assert_cmd(&["block", "decode", ""], "Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(&["block", "decode", ""], "Execution failed: failed to decode block: Rpc(RpcError { code: -32603, message: \"Invalid block format: I/O error: failed to fill whole buffer\", data: None })\n", "");
 	// This is a hex-encoded block header, not a full block
 	assert_cmd(&["block", "decode", BLOCK_HEADER_1585319], HEADER_DECODE_1585319, "");
 	// This is the same hex-encoded block header, with --txids. FIXME this is awful.
 	assert_cmd(&["block", "decode", "--txids", BLOCK_HEADER_1585319],
-		"Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n",
+		"Execution failed: failed to decode block: Rpc(RpcError { code: -32603, message: \"Invalid block format: I/O error: failed to fill whole buffer\", data: None })\n",
 "");
 	// Here is the header plus some arbitrary junk
 	assert_cmd(&["block", "decode", &(BLOCK_HEADER_1585319.to_owned() + "0000")],
-		"Execution failed: invalid block format: ParseFailed(\"data not consumed entirely when explicitly deserializing\")\n",
+		"Execution failed: failed to decode block: Rpc(RpcError { code: -32603, message: \"Invalid block format: parse failed: data not consumed entirely when explicitly deserializing\", data: None })\n",
 "");
 	// Here is the whole block.
 	assert_cmd(&["block", "decode", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
@@ -994,11 +1031,14 @@ hal-simplicity-keypair 0.1.0
 manipulate private and public keys
 
 USAGE:
-    hal-simplicity keypair [FLAGS] <SUBCOMMAND>
+    hal-simplicity keypair [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     generate    generate a random private/public keypair
@@ -1017,12 +1057,15 @@ hal-simplicity-keypair-generate 0.1.0
 generate a random private/public keypair
 
 USAGE:
-    hal-simplicity keypair generate [FLAGS]
+    hal-simplicity keypair generate [FLAGS] [OPTIONS]
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
     -y, --yaml       print output in YAML instead of JSON
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 ";
 	assert_cmd(&["keypair", "generate", "-h"], expected_help, "");
 	assert_cmd(&["keypair", "generate", "--help"], expected_help, "");
@@ -1053,11 +1096,14 @@ hal-simplicity-simplicity 0.1.0
 manipulate Simplicity programs
 
 USAGE:
-    hal-simplicity simplicity [FLAGS] <SUBCOMMAND>
+    hal-simplicity simplicity [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     info       Parse a base64-encoded Simplicity program and decode it
@@ -1087,7 +1133,9 @@ FLAGS:
     -y, --yaml               print output in YAML instead of JSON
 
 OPTIONS:
-    -s, --state <state>    32-byte state commitment to put alongside the program when generating addresess (hex)
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
+    -s, --state <state>              32-byte state commitment to put alongside the program when generating addresess
+                                     (hex)
 
 ARGS:
     <program>    a Simplicity program in base64
@@ -1123,11 +1171,14 @@ hal-simplicity-tx 0.1.0
 manipulate transactions
 
 USAGE:
-    hal-simplicity tx [FLAGS] <SUBCOMMAND>
+    hal-simplicity tx [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -v, --verbose    print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 SUBCOMMANDS:
     create    create a raw transaction from JSON
@@ -1146,12 +1197,15 @@ hal-simplicity-tx-create 0.1.0
 create a raw transaction from JSON
 
 USAGE:
-    hal-simplicity tx create [FLAGS] [tx-info]
+    hal-simplicity tx create [FLAGS] [OPTIONS] [tx-info]
 
 FLAGS:
     -h, --help          Prints help information
     -r, --raw-stdout    output the raw bytes of the result to stdout
     -v, --verbose       print verbose logging output to stderr
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 ARGS:
     <tx-info>    the transaction info in JSON
@@ -1161,25 +1215,28 @@ ARGS:
 	assert_cmd(&["tx", "create", "--help"], expected_help, "");
 	assert_cmd(&["tx", "create", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["tx", "create", ""], "Execution failed: invalid JSON provided: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(&["tx", "create", "{ }"], "Execution failed: Field \"version\" is required.\n", "");
+	assert_cmd(&["tx", "create", ""], "Execution failed: failed to create transaction: Rpc(RpcError { code: -32603, message: \"Failed to parse transaction info JSON: EOF while parsing a value at line 1 column 0\", data: None })\n", "");
+	assert_cmd(&["tx", "create", "{ }"], "Execution failed: failed to create transaction: Rpc(RpcError { code: -32603, message: \"version is required\", data: None })\n", "");
 	// FIXME I have no idea what is wrong here. But putting a test in to track fixing
 	//  whatever is causing this nonsense error.
 	assert_cmd(
 		&["tx", "create", "{ \"version\": 10, \"locktime\": 10 }"],
-		"Execution failed: invalid JSON provided: Error(\"expected value\", line: 1, column: 30)\n",
+		"Execution failed: failed to create transaction: Rpc(RpcError { code: -32603, message: \"Failed to parse transaction info JSON: expected value at line 1 column 30\", data: None })\n",
 		"",
 	);
 	// FIXME: lol, replace this locktime format with something sane
 	assert_cmd(
 		&["tx", "create", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
-		"0a0000000000000a000000",
+		r#"{
+  "raw_tx": "0a0000000000000a000000"
+}"#,
 		"",
 	);
-	// -v does nothing
 	assert_cmd(
-		&["tx", "create", "-v", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
-		"0a0000000000000a000000",
+		&["tx", "create", "{ \"version\": 10, \"locktime\": { \"Blocks\": 10 }, \"inputs\": [], \"outputs\": [] }"],
+		r#"{
+  "raw_tx": "0a0000000000000a000000"
+}"#,
 		"",
 	);
 
@@ -1203,7 +1260,7 @@ hal-simplicity-tx-decode 0.1.0
 decode a raw transaction to JSON
 
 USAGE:
-    hal-simplicity tx decode [FLAGS] [raw-tx]
+    hal-simplicity tx decode [FLAGS] [OPTIONS] [raw-tx]
 
 FLAGS:
     -r, --elementsregtest    run in elementsregtest mode
@@ -1211,6 +1268,9 @@ FLAGS:
         --liquid             run in liquid mode
     -v, --verbose            print verbose logging output to stderr
     -y, --yaml               print output in YAML instead of JSON
+
+OPTIONS:
+        --daemon-url <daemon-url>    URL of hal-simplicity-daemon
 
 ARGS:
     <raw-tx>    the raw transaction in hex
@@ -1220,33 +1280,24 @@ ARGS:
 	assert_cmd(&["tx", "decode", "--help"], expected_help, "");
 	assert_cmd(&["tx", "decode", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["tx", "decode", ""], "Execution failed: invalid tx format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(&["tx", "decode", ""], "Execution failed: failed to decode transaction: Rpc(RpcError { code: -32603, message: \"Invalid transaction format: I/O error: failed to fill whole buffer\", data: None })\n", "");
 	// A bitcoin transaction
-	assert_cmd(&["tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: invalid tx format: NonMinimalVarInt\n", "");
+	assert_cmd(&["tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: failed to decode transaction: Rpc(RpcError { code: -32603, message: \"Invalid transaction format: non-minimal varint\", data: None })\n", "");
 	// A Liquid transaction
 	let tx_decode = r#"{
-  "txid": "9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6",
-  "wtxid": "c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008",
   "hash": "c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008",
-  "size": 334,
-  "weight": 1207,
-  "vsize": 301,
-  "version": 2,
-  "locktime": {
-    "Blocks": 0
-  },
   "inputs": [
     {
+      "has_issuance": false,
+      "is_pegin": false,
       "prevout": "0000000000000000000000000000000000000000000000000000000000000000:4294967295",
-      "txid": "0000000000000000000000000000000000000000000000000000000000000000",
-      "vout": 4294967295,
       "script_sig": {
-        "hex": "03a730180101",
-        "asm": "OP_PUSHBYTES_3 a73018 OP_PUSHBYTES_1 01"
+        "asm": "OP_PUSHBYTES_3 a73018 OP_PUSHBYTES_1 01",
+        "hex": "03a730180101"
       },
       "sequence": 4294967295,
-      "is_pegin": false,
-      "has_issuance": false,
+      "txid": "0000000000000000000000000000000000000000000000000000000000000000",
+      "vout": 4294967295,
       "witness": {
         "amount_rangeproof": null,
         "inflation_keys_rangeproof": null,
@@ -1256,81 +1307,90 @@ ARGS:
       }
     }
   ],
+  "locktime": {
+    "Blocks": 0
+  },
   "outputs": [
     {
-      "script_pub_key": {
-        "hex": "6a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000",
-        "asm": "OP_RETURN OP_PUSHBYTES_36 0a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000",
-        "type": "opreturn"
-      },
       "asset": {
-        "type": "explicit",
         "asset": "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
-        "label": "liquid_bitcoin"
+        "label": "liquid_bitcoin",
+        "type": "explicit"
+      },
+      "is_fee": false,
+      "nonce": {
+        "type": "null"
+      },
+      "script_pub_key": {
+        "asm": "OP_RETURN OP_PUSHBYTES_36 0a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000",
+        "hex": "6a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000",
+        "type": "opreturn"
       },
       "value": {
         "type": "explicit",
         "value": 0
       },
+      "witness": {
+        "rangeproof": null,
+        "surjection_proof": null
+      }
+    },
+    {
+      "asset": {
+        "asset": "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
+        "label": "liquid_bitcoin",
+        "type": "explicit"
+      },
+      "is_fee": false,
       "nonce": {
         "type": "null"
       },
-      "witness": {
-        "surjection_proof": null,
-        "rangeproof": null
-      },
-      "is_fee": false
-    },
-    {
       "script_pub_key": {
-        "hex": "76a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac",
+        "address": "2dxQzjvrkmRGSa5gwgaQn1oLtRo5pXS94oJ",
         "asm": "OP_DUP OP_HASH160 OP_PUSHBYTES_20 fc26751a5025129a2fd006c6fbfa598ddd67f7e1 OP_EQUALVERIFY OP_CHECKSIG",
-        "type": "p2pkh",
-        "address": "2dxQzjvrkmRGSa5gwgaQn1oLtRo5pXS94oJ"
-      },
-      "asset": {
-        "type": "explicit",
-        "asset": "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
-        "label": "liquid_bitcoin"
+        "hex": "76a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac",
+        "type": "p2pkh"
       },
       "value": {
         "type": "explicit",
         "value": 262
       },
+      "witness": {
+        "rangeproof": null,
+        "surjection_proof": null
+      }
+    },
+    {
+      "asset": {
+        "asset": "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
+        "label": "liquid_bitcoin",
+        "type": "explicit"
+      },
+      "is_fee": false,
       "nonce": {
         "type": "null"
       },
-      "witness": {
-        "surjection_proof": null,
-        "rangeproof": null
-      },
-      "is_fee": false
-    },
-    {
       "script_pub_key": {
-        "hex": "6a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3",
         "asm": "OP_RETURN OP_PUSHBYTES_36 aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3",
+        "hex": "6a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3",
         "type": "opreturn"
-      },
-      "asset": {
-        "type": "explicit",
-        "asset": "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
-        "label": "liquid_bitcoin"
       },
       "value": {
         "type": "explicit",
         "value": 0
       },
-      "nonce": {
-        "type": "null"
-      },
       "witness": {
-        "surjection_proof": null,
-        "rangeproof": null
-      },
-      "is_fee": false
+        "rangeproof": null,
+        "surjection_proof": null
+      }
     }
-  ]
+  ],
+  "size": 334,
+  "txid": "9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6",
+  "version": 2,
+  "vsize": 301,
+  "weight": 1207,
+  "wtxid": "c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008"
 }"#;
 	assert_cmd(&["tx", "decode", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
@@ -1338,8 +1398,7 @@ ARGS:
 	assert_cmd(&["tx", "decode", "-r", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
-	// -v works but seems to do nothing
-	assert_cmd(&["tx", "decode", "-v", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
+	assert_cmd(&["tx", "decode", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
 	assert_cmd(&["tx", "decode", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
@@ -1349,87 +1408,86 @@ ARGS:
 	assert_cmd(&["tx", "decode", "-r", "--liquid", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		tx_decode,
 		"");
-	// -v works but seems to do nothing
 	assert_cmd(&["tx", "decode", "-y", "0200000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0603a730180101ffffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f010000000000000106001976a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f01000000000000000000266a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab30000000000000120000000000000000000000000000000000000000000000000000000000000000000000000000000"],
 		r#"---
-txid: 9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6
-wtxid: c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008
 hash: c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008
-size: 334
-weight: 1207
-vsize: 301
-version: 2
-locktime:
-  Blocks: 0
 inputs:
-  - prevout: "0000000000000000000000000000000000000000000000000000000000000000:4294967295"
+  - has_issuance: false
+    is_pegin: false
+    prevout: "0000000000000000000000000000000000000000000000000000000000000000:4294967295"
+    script_sig:
+      asm: OP_PUSHBYTES_3 a73018 OP_PUSHBYTES_1 01
+      hex: 03a730180101
+    sequence: 4294967295
     txid: "0000000000000000000000000000000000000000000000000000000000000000"
     vout: 4294967295
-    script_sig:
-      hex: 03a730180101
-      asm: OP_PUSHBYTES_3 a73018 OP_PUSHBYTES_1 01
-    sequence: 4294967295
-    is_pegin: false
-    has_issuance: false
     witness:
       amount_rangeproof: ~
       inflation_keys_rangeproof: ~
       script_witness:
         - "0000000000000000000000000000000000000000000000000000000000000000"
+locktime:
+  Blocks: 0
 outputs:
-  - script_pub_key:
-      hex: 6a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000
-      asm: OP_RETURN OP_PUSHBYTES_36 0a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000
-      type: opreturn
-    asset:
-      type: explicit
+  - asset:
       asset: 6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d
       label: liquid_bitcoin
+      type: explicit
+    is_fee: false
+    nonce:
+      type: "null"
+    script_pub_key:
+      asm: OP_RETURN OP_PUSHBYTES_36 0a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000
+      hex: 6a240a8ce26fdbb51a2d03d4e62fdafd4a06dd7faa0d1c083aa7e27905000000000000000000
+      type: opreturn
     value:
       type: explicit
       value: 0
-    nonce:
-      type: "null"
     witness:
-      surjection_proof: ~
       rangeproof: ~
-    is_fee: false
-  - script_pub_key:
-      hex: 76a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac
-      asm: OP_DUP OP_HASH160 OP_PUSHBYTES_20 fc26751a5025129a2fd006c6fbfa598ddd67f7e1 OP_EQUALVERIFY OP_CHECKSIG
-      type: p2pkh
-      address: 2dxQzjvrkmRGSa5gwgaQn1oLtRo5pXS94oJ
-    asset:
-      type: explicit
+      surjection_proof: ~
+  - asset:
       asset: 6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d
       label: liquid_bitcoin
+      type: explicit
+    is_fee: false
+    nonce:
+      type: "null"
+    script_pub_key:
+      address: 2dxQzjvrkmRGSa5gwgaQn1oLtRo5pXS94oJ
+      asm: OP_DUP OP_HASH160 OP_PUSHBYTES_20 fc26751a5025129a2fd006c6fbfa598ddd67f7e1 OP_EQUALVERIFY OP_CHECKSIG
+      hex: 76a914fc26751a5025129a2fd006c6fbfa598ddd67f7e188ac
+      type: p2pkh
     value:
       type: explicit
       value: 262
-    nonce:
-      type: "null"
     witness:
-      surjection_proof: ~
       rangeproof: ~
-    is_fee: false
-  - script_pub_key:
-      hex: 6a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3
-      asm: OP_RETURN OP_PUSHBYTES_36 aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3
-      type: opreturn
-    asset:
-      type: explicit
+      surjection_proof: ~
+  - asset:
       asset: 6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d
       label: liquid_bitcoin
+      type: explicit
+    is_fee: false
+    nonce:
+      type: "null"
+    script_pub_key:
+      asm: OP_RETURN OP_PUSHBYTES_36 aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3
+      hex: 6a24aa21a9ede8497768bc893ee587244bf5303ac3cf482bab8e4b3fd22e8b114c2a52525ab3
+      type: opreturn
     value:
       type: explicit
       value: 0
-    nonce:
-      type: "null"
     witness:
-      surjection_proof: ~
       rangeproof: ~
-    is_fee: false"#,
-		"");
+      surjection_proof: ~
+size: 334
+txid: 9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6
+version: 2
+vsize: 301
+weight: 1207
+wtxid: c1107130eaa29002ceac7c7fc9a93cd46a15a030a8f21ad579a4a06a3deff008
+"#, "");
 }
 
 // Stick some big constants down here
@@ -1475,22 +1533,17 @@ static BLOCK_HEADER_1585319: &str = concat!(
 
 static HEADER_DECODE_1585319: &str = r#"{
   "block_hash": "5f37039a5ae15d9239bb2e137643a51d3a525d6e850b5e8974b4323c9e13a39b",
-  "version": 536870912,
-  "previous_block_hash": "3365afcddd47de8f1e53f7407115f47ae20c91a818a64016de5b4ea3e0096417",
-  "merkle_root": "242f440712c6f758f584b28179b65c1b3e33d015db0b81ca32cfc8865ac9e08c",
-  "time": 1637622420,
-  "height": 1585319,
   "dynafed": true,
   "dynafed_current": {
+    "elided_root": "ff0f60e85234ad045ac9a8f174b41ac9e3461ad2f6b05d0fccbd964eed5d757e",
     "params_type": "compact",
-    "signblockscript": "0020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c",
     "signblock_witness_limit": 1416,
-    "elided_root": "ff0f60e85234ad045ac9a8f174b41ac9e3461ad2f6b05d0fccbd964eed5d757e"
+    "signblockscript": "0020e51211e91d9cf4aec3bdc370a0303acde5d24baedb12235fdd2786885069d91c"
   },
   "dynafed_proposed": {
     "params_type": "null",
-    "signblockscript": null,
-    "signblock_witness_limit": null
+    "signblock_witness_limit": null,
+    "signblockscript": null
   },
   "dynafed_witness": [
     "",
@@ -1506,7 +1559,12 @@ static HEADER_DECODE_1585319: &str = r#"{
     "30440220212d552bc35aac010dd546467cf0d15fe3f2b3349ba6e554d10cadd2b37d975802201ede6c1f518056dd843bf7338f6b3d31f4811d9590db3a4c2679311ea6f9bf1a01",
     "3045022100fb4aee60b6157f7942e720e893e39676c6bd97e5bca37e1248ce6133a6b2b65302200de5611208eb3c12f713b2eee904f7d70a19f74491bbe4fcf11210d7c1c46b9c01",
     "5b21026a2a106ec32c8a1e8052e5d02a7b0a150423dbd9b116fc48d46630ff6e6a05b92102791646a8b49c2740352b4495c118d876347bf47d0551c01c4332fdc2df526f1a2102888bda53a424466b0451627df22090143bbf7c060e9eacb1e38426f6b07f2ae12102aee8967150dee220f613de3b239320355a498808084a93eaf39a34dcd62024852102d46e9259d0a0bb2bcbc461a3e68f34adca27b8d08fbe985853992b4b104e27412102e9944e35e5750ab621e098145b8e6cf373c273b7c04747d1aa020be0af40ccd62102f9a9d4b10a6d6c56d8c955c547330c589bb45e774551d46d415e51cd9ad5116321033b421566c124dfde4db9defe4084b7aa4e7f36744758d92806b8f72c2e943309210353dcc6b4cf6ad28aceb7f7b2db92a4bf07ac42d357adf756f3eca790664314b621037f55980af0455e4fb55aad9b85a55068bb6dc4740ea87276dc693f4598db45fa210384001daa88dabd23db878dbb1ce5b4c2a5fa72c3113e3514bf602325d0c37b8e21039056d089f2fe72dbc0a14780b4635b0dc8a1b40b7a59106325dd1bc45cc70493210397ab8ea7b0bf85bc7fc56bb27bf85e75502e94e76a6781c409f3f2ec3d1122192103b00e3b5b77884bf3cae204c4b4eac003601da75f96982ffcb3dcb29c5ee419b92103c1f3c0874cfe34b8131af34699589aacec4093399739ae352e8a46f80a6f68375fae"
-  ]
+  ],
+  "height": 1585319,
+  "merkle_root": "242f440712c6f758f584b28179b65c1b3e33d015db0b81ca32cfc8865ac9e08c",
+  "previous_block_hash": "3365afcddd47de8f1e53f7407115f47ae20c91a818a64016de5b4ea3e0096417",
+  "time": 1637622420,
+  "version": 536870912
 }"#;
 
 static FULL_BLOCK_1585319: &str = concat!(

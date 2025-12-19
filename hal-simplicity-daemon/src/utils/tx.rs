@@ -211,6 +211,7 @@ impl GetInfo<OutputWitnessInfo> for TxOutWitness {
 
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct OutputScriptInfo {
+	#[serde(with = "crate::utils::serde_helpers::hex_bytes")]
 	pub hex: Option<HexBytes>,
 	pub asm: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none", rename = "type")]

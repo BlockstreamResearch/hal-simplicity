@@ -24,7 +24,7 @@ use crate::utils::tx::{
 use crate::types::Network;
 use crate::utils::GetInfo;
 
-use crate::types::{TxCreateRequest, TxDecodeRequest};
+use crate::types::{TxCreateRequest, TxCreateResponse, TxDecodeRequest};
 
 #[derive(Debug, Error)]
 pub enum TxError {
@@ -115,12 +115,14 @@ pub enum TxError {
 	PegoutAssetMismatch,
 }
 
-pub fn create(req: TxCreateRequest) -> Result<String, TxError> {
+pub fn create(req: TxCreateRequest) -> Result<TxCreateResponse, TxError> {
 	let info = serde_json::from_str::<TransactionInfo>(&req.tx_info).map_err(TxError::JsonParse)?;
 
 	let tx = create_transaction(info)?;
 	let tx_bytes = serialize(&tx);
-	Ok(hex::encode(&tx_bytes))
+	Ok(TxCreateResponse {
+		raw_tx: hex::encode(&tx_bytes),
+	})
 }
 
 pub fn decode(req: TxDecodeRequest) -> Result<serde_json::Value, TxError> {

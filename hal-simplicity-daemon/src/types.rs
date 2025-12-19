@@ -96,7 +96,7 @@ pub struct BlockDecodeRequest {
 	pub txids: Option<bool>,
 }
 
-pub use crate::utils::block::BlockInfo as BlockDecodeResponse;
+pub type BlockDecodeResponse = serde_json::Value;
 
 // Transaction types
 #[derive(Debug, Serialize, Deserialize)]
@@ -116,7 +116,7 @@ pub struct TxDecodeRequest {
 	pub network: Option<String>,
 }
 
-pub use crate::utils::tx::TransactionInfo as TxDecodeResponse;
+pub type TxDecodeResponse = serde_json::Value;
 
 // Keypair types
 #[derive(Debug, Serialize, Deserialize)]

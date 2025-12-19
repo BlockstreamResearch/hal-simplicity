@@ -4,6 +4,7 @@ use elements::{Address, WPubkeyHash, WScriptHash};
 use thiserror::Error;
 
 use crate::utils::address::{AddressInfo, Addresses};
+use crate::utils::tx::OutputScriptInfo;
 
 use crate::types::AddressCreateRequest;
 use crate::types::Network;
@@ -63,7 +64,7 @@ pub fn inspect(address_str: &str) -> Result<AddressInfo, AddressError> {
 
 	let mut info = AddressInfo {
 		network: Network::from_params(address.params).expect("addresses always have params"),
-		script_pub_key: hal::tx::OutputScriptInfo {
+		script_pub_key: OutputScriptInfo {
 			hex: Some(script_pk.to_bytes().into()),
 			asm: Some(script_pk.asm()),
 			address: None,

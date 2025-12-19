@@ -6,7 +6,7 @@ use crate::types::Network;
 use crate::utils::block::{BlockHeaderInfo, BlockInfo, ParamsInfo, ParamsType};
 use crate::utils::GetInfo;
 
-use crate::types::{BlockCreateRequest, BlockDecodeRequest};
+use crate::types::{BlockCreateRequest, BlockCreateResponse, BlockDecodeRequest};
 
 #[derive(Debug, Error)]
 pub enum BlockError {
@@ -43,7 +43,7 @@ pub enum BlockError {
 	},
 }
 
-pub fn create(req: BlockCreateRequest) -> Result<String, BlockError> {
+pub fn create(req: BlockCreateRequest) -> Result<BlockCreateResponse, BlockError> {
 	let info = serde_json::from_str::<BlockInfo>(&req.block_info).map_err(BlockError::JsonParse)?;
 
 	let block = Block {
@@ -65,7 +65,9 @@ pub fn create(req: BlockCreateRequest) -> Result<String, BlockError> {
 	};
 
 	let block_bytes = serialize(&block);
-	Ok(hex::encode(&block_bytes))
+	Ok(BlockCreateResponse {
+		raw_block: hex::encode(&block_bytes),
+	})
 }
 
 pub fn decode(req: BlockDecodeRequest) -> Result<serde_json::Value, BlockError> {

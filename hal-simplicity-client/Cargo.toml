@@ -42,3 +42,8 @@ reqwest = { version = "0.12.26", features = ["blocking"] }
 needless_question_mark = "allow" # https://github.com/rust-bitcoin/rust-bitcoin/pull/2134
 manual_range_contains = "allow" # More readable than clippy's format.
 uninlined_format_args = "allow" # Stylistic and dumb and inconsistent
+
+[[test]]
+name = "cli"
+harness = true
+test = true
