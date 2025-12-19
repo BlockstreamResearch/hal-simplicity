@@ -32,6 +32,8 @@ jobs:
   Stable:
     name: Test - stable toolchain
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +52,8 @@ jobs:
     name: Test - nightly toolchain
     needs: Prepare
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -70,6 +74,8 @@ jobs:
     name: Test - MSRV
     needs: Prepare
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
