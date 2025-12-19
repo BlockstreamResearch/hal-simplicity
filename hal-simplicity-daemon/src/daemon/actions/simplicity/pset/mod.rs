@@ -50,7 +50,7 @@ fn execution_environment(
 	genesis_hash: Option<&str>,
 ) -> Result<(ElementsEnv<Arc<Transaction>>, ControlBlock, Script), PsetError> {
 	let n_inputs = pset.n_inputs();
-	let input = pset.inputs().get(input_idx).ok_or_else(|| PsetError::InputIndexOutOfRange {
+	let input = pset.inputs().get(input_idx).ok_or(PsetError::InputIndexOutOfRange {
 		index: input_idx,
 		total: n_inputs,
 	})?;

@@ -61,13 +61,13 @@ impl HalSimplicity {
 
 	/// Create a client with default URL (http://localhost:28579)
 	#[cfg(not(feature = "embed_daemon"))]
-	pub fn default() -> Result<Self, ClientError> {
+	pub fn with_default_url() -> Result<Self, ClientError> {
 		Self::new(DEFAULT_DAEMON_URL.to_string())
 	}
 
 	/// Create a client with an embedded daemon that auto-starts
 	#[cfg(feature = "embed_daemon")]
-	pub fn default() -> Result<Self, ClientError> {
+	pub fn with_default_url() -> Result<Self, ClientError> {
 		Self::with_embedded_daemon()
 	}
 
@@ -272,6 +272,7 @@ impl HalSimplicity {
 	}
 
 	/// Compute and optionally sign a Simplicity sighash
+	#[allow(clippy::too_many_arguments)]
 	pub fn simplicity_sighash(
 		&self,
 		tx: String,

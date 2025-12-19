@@ -81,7 +81,7 @@ fn main() {
 	} else {
 		#[cfg(feature = "embed_daemon")]
 		{
-			HalSimplicity::default()
+			HalSimplicity::with_default_url()
 		}
 		#[cfg(not(feature = "embed_daemon"))]
 		{

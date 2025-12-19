@@ -370,15 +370,11 @@ fn create_input_witness(
 		Ok(TxInWitness {
 			amount_rangeproof: wi
 				.amount_rangeproof
-				.map(|b| {
-					RangeProof::from_slice(&b.0).map(|rp| Box::new(rp)).map_err(TxError::RangeProof)
-				})
+				.map(|b| RangeProof::from_slice(&b.0).map(Box::new).map_err(TxError::RangeProof))
 				.transpose()?,
 			inflation_keys_rangeproof: wi
 				.inflation_keys_rangeproof
-				.map(|b| {
-					RangeProof::from_slice(&b.0).map(|rp| Box::new(rp)).map_err(TxError::RangeProof)
-				})
+				.map(|b| RangeProof::from_slice(&b.0).map(Box::new).map_err(TxError::RangeProof))
 				.transpose()?,
 			script_witness: match wi.script_witness {
 				Some(ref w) => w.iter().map(|h| h.clone().0).collect(),
@@ -457,15 +453,13 @@ fn create_output_witness(w: OutputWitnessInfo) -> Result<TxOutWitness, TxError> 
 			.surjection_proof
 			.map(|b| {
 				SurjectionProof::from_slice(&b.0[..])
-					.map(|sp| Box::new(sp))
+					.map(Box::new)
 					.map_err(TxError::SurjectionProof)
 			})
 			.transpose()?,
 		rangeproof: w
 			.rangeproof
-			.map(|b| {
-				RangeProof::from_slice(&b.0[..]).map(|rp| Box::new(rp)).map_err(TxError::RangeProof)
-			})
+			.map(|b| RangeProof::from_slice(&b.0[..]).map(Box::new).map_err(TxError::RangeProof))
 			.transpose()?,
 	})
 }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::jsonrpc::{ErrorCode, JsonRpcService, RpcError, RpcHandler};
 use serde_json::Value;
 
@@ -23,55 +25,39 @@ pub enum RpcMethod {
 	PsetUpdateInput,
 }
 
-impl RpcMethod {
-	pub fn from_str(s: &str) -> Option<Self> {
-		match s {
-			"address_create" => Some(Self::AddressCreate),
-			"address_inspect" => Some(Self::AddressInspect),
-			"block_create" => Some(Self::BlockCreate),
-			"block_decode" => Some(Self::BlockDecode),
-			"tx_create" => Some(Self::TxCreate),
-			"tx_decode" => Some(Self::TxDecode),
-			"keypair_generate" => Some(Self::KeypairGenerate),
-			"simplicity_info" => Some(Self::SimplicityInfo),
-			"simplicity_sighash" => Some(Self::SimplicitySighash),
-			"pset_create" => Some(Self::PsetCreate),
-			"pset_extract" => Some(Self::PsetExtract),
-			"pset_finalize" => Some(Self::PsetFinalize),
-			"pset_run" => Some(Self::PsetRun),
-			"pset_update_input" => Some(Self::PsetUpdateInput),
-			_ => None,
-		}
-	}
+impl FromStr for RpcMethod {
+	type Err = RpcError;
 
-	#[allow(dead_code)]
-	pub fn as_str(&self) -> &'static str {
-		match self {
-			Self::AddressCreate => "address_create",
-			Self::AddressInspect => "address_inspect",
-			Self::BlockCreate => "block_create",
-			Self::BlockDecode => "block_decode",
-			Self::TxCreate => "tx_create",
-			Self::TxDecode => "tx_decode",
-			Self::KeypairGenerate => "keypair_generate",
-			Self::SimplicityInfo => "simplicity_info",
-			Self::SimplicitySighash => "simplicity_sighash",
-			Self::PsetCreate => "pset_create",
-			Self::PsetExtract => "pset_extract",
-			Self::PsetFinalize => "pset_finalize",
-			Self::PsetRun => "pset_run",
-			Self::PsetUpdateInput => "pset_update_input",
-		}
+	fn from_str(s: &str) -> Result<Self, RpcError> {
+		let method = match s {
+			"address_create" => Self::AddressCreate,
+			"address_inspect" => Self::AddressInspect,
+			"block_create" => Self::BlockCreate,
+			"block_decode" => Self::BlockDecode,
+			"tx_create" => Self::TxCreate,
+			"tx_decode" => Self::TxDecode,
+			"keypair_generate" => Self::KeypairGenerate,
+			"simplicity_info" => Self::SimplicityInfo,
+			"simplicity_sighash" => Self::SimplicitySighash,
+			"pset_create" => Self::PsetCreate,
+			"pset_extract" => Self::PsetExtract,
+			"pset_finalize" => Self::PsetFinalize,
+			"pset_run" => Self::PsetRun,
+			"pset_update_input" => Self::PsetUpdateInput,
+			_ => return Err(RpcError::new(ErrorCode::MethodNotFound)),
+		};
+
+		Ok(method)
 	}
 }
 
 /// Default RPC handler that provides basic methods
+#[derive(Default)]
 pub struct DefaultRpcHandler;
 
 impl RpcHandler for DefaultRpcHandler {
 	fn handle(&self, method: &str, params: Option<Value>) -> Result<Value, RpcError> {
-		let rpc_method =
-			RpcMethod::from_str(method).ok_or_else(|| RpcError::new(ErrorCode::MethodNotFound))?;
+		let rpc_method = RpcMethod::from_str(method)?;
 
 		match rpc_method {
 			RpcMethod::AddressCreate => {
@@ -174,7 +160,7 @@ impl RpcHandler for DefaultRpcHandler {
 }
 
 impl DefaultRpcHandler {
-	pub fn new() -> Self {
+	fn new() -> Self {
 		Self
 	}
 }
