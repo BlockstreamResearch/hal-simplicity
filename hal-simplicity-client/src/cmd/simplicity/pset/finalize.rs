@@ -3,12 +3,6 @@
 
 use crate::cmd;
 
-use hal_simplicity_daemon::simplicity::jet;
-use hal_simplicity_daemon::utils::hal_simplicity::Program;
-
-use super::super::{Error, ErrorExt as _};
-use super::UpdatedPset;
-
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("finalize", "Attach a Simplicity program and witness to a PSET input")
 		.args(&cmd::opts_networks())
@@ -30,54 +24,22 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 		])
 }
 
-pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
-	let pset_b64 = matches.value_of("pset").expect("tx mandatory");
-	let input_idx = matches.value_of("input-index").expect("input-idx is mandatory");
-	let program = matches.value_of("program").expect("program is mandatory");
-	let witness = matches.value_of("witness").expect("witness is mandatory");
-	let genesis_hash = matches.value_of("genesis-hash");
+pub fn exec<'a>(
+	matches: &clap::ArgMatches<'a>,
+	client: &hal_simplicity::hal_simplicity_client::HalSimplicity,
+) {
+	let pset_b64 = matches.value_of("pset").expect("tx mandatory").to_string();
+	let input_idx_str = matches.value_of("input-index").expect("input-idx is mandatory");
+	let input_idx: u32 = input_idx_str.parse().expect("invalid input index");
+	let program = matches.value_of("program").expect("program is mandatory").to_string();
+	let witness = matches.value_of("witness").expect("witness is mandatory").to_string();
+	let genesis_hash = matches.value_of("genesis-hash").map(String::from);
 
-	match exec_inner(pset_b64, input_idx, program, witness, genesis_hash) {
-		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+	match client.pset_finalize(pset_b64, input_idx, program, witness, genesis_hash) {
+		Ok(response) => cmd::print_output(matches, &response),
+		Err(e) => {
+			eprintln!("Error: {}", e);
+			std::process::exit(1);
+		}
 	}
-}
-
-#[allow(clippy::too_many_arguments)]
-fn exec_inner(
-	pset_b64: &str,
-	input_idx: &str,
-	program: &str,
-	witness: &str,
-	genesis_hash: Option<&str>,
-) -> Result<UpdatedPset, Error> {
-	// 1. Parse everything.
-	let mut pset: elements::pset::PartiallySignedTransaction =
-		pset_b64.parse().result_context("decoding PSET")?;
-	let input_idx: u32 = input_idx.parse().result_context("parsing input-idx")?;
-	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
-
-	let program = Program::<jet::Elements>::from_str(program, Some(witness))
-		.result_context("parsing program")?;
-
-	// 2. Extract transaction environment.
-	let (tx_env, control_block, tap_leaf) =
-		super::execution_environment(&pset, input_idx_usize, program.cmr(), genesis_hash)?;
-	let cb_serialized = control_block.serialize();
-
-	// 3. Prune program.
-	let redeem_node = program.redeem_node().expect("populated");
-	let pruned = redeem_node.prune(&tx_env).result_context("pruning program")?;
-
-	let (prog, witness) = pruned.to_vec_with_witness();
-	// If `execution_environment` above succeeded we are guaranteed that this index is in bounds.
-	let input = &mut pset.inputs_mut()[input_idx_usize];
-	input.final_script_witness = Some(vec![witness, prog, tap_leaf.into_bytes(), cb_serialized]);
-
-	let updated_values = vec!["final_script_witness"];
-
-	Ok(UpdatedPset {
-		pset: pset.to_string(),
-		updated_values,
-	})
 }

@@ -7,6 +7,8 @@ pub use hal_simplicity_daemon::utils::{GetInfo, Network};
 
 pub mod cmd;
 
+use hal_simplicity::hal_simplicity_client::HalSimplicity;
+
 /// Setup logging with the given log level.
 fn setup_logger(lvl: log::LevelFilter) {
 	fern::Dispatch::new()
@@ -34,16 +36,17 @@ fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
 				.takes_value(false)
 				.global(true),
 		)
+		.arg(cmd::opt("daemon-url", "URL of hal-simplicity-daemon").takes_value(true).global(true))
 }
 
 /// Try execute built-in command. Return false if no command found.
-fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>) -> bool {
+fn execute_builtin<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) -> bool {
 	match matches.subcommand() {
-		("address", Some(m)) => cmd::address::execute(m),
-		("block", Some(m)) => cmd::block::execute(m),
-		("keypair", Some(m)) => cmd::keypair::execute(m),
-		("simplicity", Some(m)) => cmd::simplicity::execute(m),
-		("tx", Some(m)) => cmd::tx::execute(m),
+		("address", Some(m)) => cmd::address::execute(m, client),
+		("block", Some(m)) => cmd::block::execute(m, client),
+		("keypair", Some(m)) => cmd::keypair::execute(m, client),
+		("simplicity", Some(m)) => cmd::simplicity::execute(m, client),
+		("tx", Some(m)) => cmd::tx::execute(m, client),
 		_ => return false,
 	};
 	true
@@ -73,7 +76,19 @@ fn main() {
 		false => setup_logger(log::LevelFilter::Warn),
 	}
 
-	if execute_builtin(&matches) {
+	// Create JSON-RPC client
+	let client = if let Some(url) = matches.value_of("daemon-url") {
+		HalSimplicity::new(url.to_string())
+	} else {
+		HalSimplicity::default()
+	};
+
+	let client = client.unwrap_or_else(|e| {
+		eprintln!("Failed to connect to daemon: {}", e);
+		process::exit(1);
+	});
+
+	if execute_builtin(&matches, &client) {
 		// success
 		process::exit(0);
 	} else {
