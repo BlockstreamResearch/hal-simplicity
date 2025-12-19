@@ -68,10 +68,14 @@ pub struct AddressCreateRequest {
 	pub blinder: Option<String>,
 }
 
+pub use crate::utils::address::Addresses as AddressCreateResponse;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddressInspectRequest {
 	pub address: String,
 }
+
+pub use crate::utils::address::AddressInfo as AddressInspectResponse;
 
 // Block types
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,11 +85,18 @@ pub struct BlockCreateRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct BlockCreateResponse {
+	pub raw_block: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BlockDecodeRequest {
 	pub raw_block: String,
 	pub network: Option<String>,
 	pub txids: Option<bool>,
 }
+
+pub use crate::utils::block::BlockInfo as BlockDecodeResponse;
 
 // Transaction types
 #[derive(Debug, Serialize, Deserialize)]
@@ -95,10 +106,17 @@ pub struct TxCreateRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct TxCreateResponse {
+	pub raw_tx: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TxDecodeRequest {
 	pub raw_tx: String,
 	pub network: Option<String>,
 }
+
+pub use crate::utils::tx::TransactionInfo as TxDecodeResponse;
 
 // Keypair types
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,7 +141,7 @@ pub struct SimplicityInfoRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SimplicityInfoResponse {
-	pub jets: &'static str,
+	pub jets: String,
 	pub commit_base64: String,
 	pub commit_decode: String,
 	pub type_arrow: String,

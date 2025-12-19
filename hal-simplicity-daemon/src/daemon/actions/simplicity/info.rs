@@ -37,7 +37,7 @@ pub fn info(req: SimplicityInfoRequest) -> Result<SimplicityInfoResponse, Simpli
 		.map_err(SimplicityInfoError::StateParse)?;
 
 	Ok(SimplicityInfoResponse {
-		jets: "core",
+		jets: "core".to_string(),
 		commit_base64: program.commit_prog().to_string(),
 		commit_decode: program.commit_prog().display_expr().to_string(),
 		type_arrow: program.commit_prog().arrow().to_string(),

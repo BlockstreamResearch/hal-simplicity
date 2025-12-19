@@ -160,7 +160,7 @@ impl HalSimplicity {
 		pubkey: Option<String>,
 		script: Option<String>,
 		blinder: Option<String>,
-	) -> Result<Value, ClientError> {
+	) -> Result<AddressCreateResponse, ClientError> {
 		let params = AddressCreateRequest {
 			network,
 			pubkey,
@@ -172,7 +172,7 @@ impl HalSimplicity {
 	}
 
 	/// Inspect an Elements address
-	pub fn address_inspect(&self, address: String) -> Result<Value, ClientError> {
+	pub fn address_inspect(&self, address: String) -> Result<AddressInspectResponse, ClientError> {
 		let params = AddressInspectRequest {
 			address,
 		};
@@ -187,7 +187,7 @@ impl HalSimplicity {
 		&self,
 		block_info: String,
 		raw_stdout: Option<bool>,
-	) -> Result<Value, ClientError> {
+	) -> Result<BlockCreateResponse, ClientError> {
 		let params = BlockCreateRequest {
 			block_info,
 			raw_stdout,
@@ -202,7 +202,7 @@ impl HalSimplicity {
 		raw_block: String,
 		network: Option<String>,
 		txids: Option<bool>,
-	) -> Result<Value, ClientError> {
+	) -> Result<BlockDecodeResponse, ClientError> {
 		let params = BlockDecodeRequest {
 			raw_block,
 			network,
@@ -219,7 +219,7 @@ impl HalSimplicity {
 		&self,
 		tx_info: String,
 		raw_stdout: Option<bool>,
-	) -> Result<Value, ClientError> {
+	) -> Result<TxCreateResponse, ClientError> {
 		let params = TxCreateRequest {
 			tx_info,
 			raw_stdout,
@@ -229,7 +229,7 @@ impl HalSimplicity {
 	}
 
 	/// Decode a raw transaction
-	pub fn tx_decode(&self, raw_tx: String, network: Option<String>) -> Result<Value, ClientError> {
+	pub fn tx_decode(&self, raw_tx: String, network: Option<String>) -> Result<TxDecodeResponse, ClientError> {
 		let params = TxDecodeRequest {
 			raw_tx,
 			network,
@@ -256,7 +256,7 @@ impl HalSimplicity {
 		witness: Option<String>,
 		state: Option<String>,
 		network: Option<String>,
-	) -> Result<Value, ClientError> {
+	) -> Result<SimplicityInfoResponse, ClientError> {
 		let params = SimplicityInfoRequest {
 			program,
 			witness,

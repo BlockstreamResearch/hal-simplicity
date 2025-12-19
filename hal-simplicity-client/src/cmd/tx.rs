@@ -35,10 +35,8 @@ fn exec_create<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
 	let result = client.tx_create(tx_info, Some(raw_stdout)).expect("failed to create transaction");
 
 	if raw_stdout {
-		if let Some(raw_hex) = result.as_str() {
-			let raw_bytes = hex::decode(raw_hex).expect("invalid hex in response");
-			::std::io::stdout().write_all(&raw_bytes).unwrap();
-		}
+		let raw_bytes = hex::decode(&result.raw_tx).expect("invalid hex in response");
+		::std::io::stdout().write_all(&raw_bytes).unwrap();
 	} else {
 		cmd::print_output(matches, &result);
 	}

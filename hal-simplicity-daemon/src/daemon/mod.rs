@@ -1,5 +1,5 @@
-mod actions;
-mod handler;
+pub mod actions;
+pub mod handler;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
