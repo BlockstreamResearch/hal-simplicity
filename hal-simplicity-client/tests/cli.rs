@@ -13,6 +13,17 @@ fn self_command() -> Command {
 	Command::new(Path::new(self_command_str()))
 }
 
+fn is_standalone() -> bool {
+	#[cfg(not(feature = "embed_daemon"))]
+	{
+		true
+	}
+	#[cfg(feature = "embed_daemon")]
+	{
+		false
+	}
+}
+
 /// Asserts that the stderr of a command is empty, and that its stdout can be parsed by the
 /// given [`deserialize_fn`].
 ///
@@ -81,6 +92,11 @@ fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: 
 
 #[test]
 fn cli_help() {
+	if is_standalone() {
+		// help works differently in standalone mode
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity 0.1.0
 hal-simplicity -- a Simplicity-enabled fork of hal
@@ -128,6 +144,11 @@ For more information try --help
 
 #[test]
 fn cli_address() {
+	if is_standalone() {
+		// address requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-address 0.1.0
 work with addresses
@@ -154,6 +175,11 @@ SUBCOMMANDS:
 
 #[test]
 fn cli_address_create() {
+	if is_standalone() {
+		// address create requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-address-create 0.1.0
 create addresses
@@ -615,6 +641,11 @@ For more information try --help
 
 #[test]
 fn cli_address_inspect() {
+	if is_standalone() {
+		// address inspect requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-address-inspect 0.1.0
 inspect addresses
@@ -783,6 +814,11 @@ For more information try --help
 
 #[test]
 fn cli_block() {
+	if is_standalone() {
+		// block command requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-block 0.1.0
 manipulate blocks
@@ -809,6 +845,11 @@ SUBCOMMANDS:
 
 #[test]
 fn cli_block_create() {
+	if is_standalone() {
+		// block create requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-block-create 0.1.0
 create a raw block from JSON
@@ -952,6 +993,11 @@ ARGS:
 
 #[test]
 fn cli_block_decode() {
+	if is_standalone() {
+		// block decode requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-block-decode 0.1.0
 decode a raw block to JSON
@@ -1026,6 +1072,11 @@ ARGS:
 
 #[test]
 fn cli_keypair() {
+	if is_standalone() {
+		// keypair requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-keypair 0.1.0
 manipulate private and public keys
@@ -1052,6 +1103,11 @@ SUBCOMMANDS:
 
 #[test]
 fn cli_keypair_generate() {
+	if is_standalone() {
+		// keypair generate requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-keypair-generate 0.1.0
 generate a random private/public keypair
@@ -1091,6 +1147,11 @@ OPTIONS:
 
 #[test]
 fn cli_simplicity() {
+	if is_standalone() {
+		// simplicity requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-simplicity 0.1.0
 manipulate Simplicity programs
@@ -1118,6 +1179,11 @@ SUBCOMMANDS:
 
 #[test]
 fn cli_simplicity_info() {
+	if is_standalone() {
+		// simplicity info requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-simplicity-info 0.1.0
 Parse a base64-encoded Simplicity program and decode it
@@ -1166,6 +1232,11 @@ For more information try --help
 
 #[test]
 fn cli_tx() {
+	if is_standalone() {
+		// tx requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-tx 0.1.0
 manipulate transactions
@@ -1192,6 +1263,11 @@ SUBCOMMANDS:
 
 #[test]
 fn cli_tx_create() {
+	if is_standalone() {
+		// tx create requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-tx-create 0.1.0
 create a raw transaction from JSON
@@ -1255,6 +1331,11 @@ ARGS:
 
 #[test]
 fn cli_tx_decode() {
+	if is_standalone() {
+		// tx decode requires daemon connection
+		return;
+	}
+
 	let expected_help = "\
 hal-simplicity-tx-decode 0.1.0
 decode a raw transaction to JSON
