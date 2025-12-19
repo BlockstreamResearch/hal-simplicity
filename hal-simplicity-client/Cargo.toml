@@ -14,6 +14,10 @@ readme = "README.md"
 name = "hal_simplicity"
 path = "src/lib.rs"
 
+[[bin]]
+name = "hal-simplicity"
+path = "src/main.rs"
+
 [features]
 default = ["embed_daemon"]
 embed_daemon = ["hal-simplicity-daemon/daemon"]
