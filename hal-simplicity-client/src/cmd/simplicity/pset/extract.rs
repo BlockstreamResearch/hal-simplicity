@@ -14,7 +14,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>, client: &HalSimplicity) {
 	let pset_b64 = matches.value_of("pset").expect("tx mandatory").to_string();
 
 	match client.pset_extract(pset_b64) {
-		Ok(response) => cmd::print_output(matches, &response),
+		Ok(response) => cmd::print_output(matches, &response.raw_tx),
 		Err(e) => {
 			eprintln!("Error: {}", e);
 			std::process::exit(1);
