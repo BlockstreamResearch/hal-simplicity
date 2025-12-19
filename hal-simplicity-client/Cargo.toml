@@ -33,9 +33,13 @@ serde = { version = "1.0.84", features = [ "derive" ] }
 serde_json = "1.0.34"
 serde_yaml = "0.8.8"
 hex = "0.3.2"
-
 thiserror = "2.0.17"
+
 reqwest = { version = "0.12.26", features = ["blocking"] }
+url = "=2.4.0"
+indexmap = "=2.11.1"
+native-tls = "=0.2.13"
+
 
 [lints.clippy]
 # Exclude lints we don't think are valuable.
