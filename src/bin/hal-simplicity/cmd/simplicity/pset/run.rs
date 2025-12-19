@@ -4,9 +4,9 @@
 use crate::cmd;
 
 use hal_simplicity::hal_simplicity::Program;
-use hal_simplicity::simplicity::bit_machine::{BitMachine, ExecTracker};
-use hal_simplicity::simplicity::jet;
-use hal_simplicity::simplicity::{Cmr, Ihr};
+use hal_simplicity::simplicity::bit_machine::{BitMachine, ExecTracker, FrameIter, NodeOutput};
+use hal_simplicity::simplicity::Value;
+use hal_simplicity::simplicity::{jet, node};
 
 use super::super::{Error, ErrorExt as _};
 
@@ -50,8 +50,8 @@ struct JetCall {
 	source_ty: String,
 	target_ty: String,
 	success: bool,
-	input_hex: String,
-	output_hex: String,
+	input_value: String,
+	output_value: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	equality_check: Option<(String, String)>,
 }
@@ -72,56 +72,44 @@ fn exec_inner(
 ) -> Result<Response, Error> {
 	struct JetTracker(Vec<JetCall>);
 	impl<J: jet::Jet> ExecTracker<J> for JetTracker {
-		fn track_left(&mut self, _: Ihr) {}
-		fn track_right(&mut self, _: Ihr) {}
-		fn track_jet_call(
+		fn visit_node(
 			&mut self,
-			jet: &J,
-			input_buffer: &[simplicity::ffi::ffi::UWORD],
-			output_buffer: &[simplicity::ffi::ffi::UWORD],
-			success: bool,
+			node: &simplicity::RedeemNode<J>,
+			mut input: FrameIter,
+			output: NodeOutput,
 		) {
-			// The word slices are in reverse order for some reason.
-			// FIXME maybe we should attempt to parse out Simplicity values here which
-			//    can often be displayed in a better way, esp for e.g. option types.
-			let mut input_hex = String::new();
-			for word in input_buffer.iter().rev() {
-				for byte in word.to_be_bytes() {
-					input_hex.push_str(&format!("{:02x}", byte));
-				}
+			if let node::Inner::Jet(jet) = node.inner() {
+				let input_value = Value::from_padded_bits(&mut input, &node.arrow().source)
+					.expect("valid value from bit machine");
+
+				let (success, output_value) = match output {
+					NodeOutput::NonTerminal => unreachable!(),
+					NodeOutput::JetFailed => (false, Value::unit()),
+					NodeOutput::Success(mut iter) => (
+						true,
+						Value::from_padded_bits(&mut iter, &node.arrow().target)
+							.expect("valid value from bit machine"),
+					),
+				};
+
+				let jet_name = jet.to_string();
+				let equality_check = if jet_name.strip_prefix("eq_").is_some() {
+					let (left, right) = input_value.as_product().unwrap();
+					Some((left.to_value().to_string(), right.to_value().to_string()))
+				} else {
+					None
+				};
+
+				self.0.push(JetCall {
+					jet: jet_name,
+					source_ty: jet.source_ty().to_final().to_string(),
+					target_ty: jet.target_ty().to_final().to_string(),
+					success,
+					input_value: input_value.to_string(),
+					output_value: output_value.to_string(),
+					equality_check,
+				});
 			}
-
-			let mut output_hex = String::new();
-			for word in output_buffer.iter().rev() {
-				for byte in word.to_be_bytes() {
-					output_hex.push_str(&format!("{:02x}", byte));
-				}
-			}
-
-			let jet_name = jet.to_string();
-			let equality_check = match jet_name.as_str() {
-				"eq_1" => None, // FIXME parse bits out of input
-				"eq_2" => None, // FIXME parse bits out of input
-				x if x.strip_prefix("eq_").is_some() => {
-					let split = input_hex.split_at(input_hex.len() / 2);
-					Some((split.0.to_owned(), split.1.to_owned()))
-				}
-				_ => None,
-			};
-			self.0.push(JetCall {
-				jet: jet_name,
-				source_ty: jet.source_ty().to_final().to_string(),
-				target_ty: jet.target_ty().to_final().to_string(),
-				success,
-				input_hex,
-				output_hex,
-				equality_check,
-			});
-		}
-
-		fn track_dbg_call(&mut self, _: &Cmr, _: simplicity::Value) {}
-		fn is_track_debug_enabled(&self) -> bool {
-			false
 		}
 	}
 
