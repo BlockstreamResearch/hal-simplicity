@@ -20,9 +20,19 @@ fn setup_logger(lvl: log::LevelFilter) {
 
 /// Create the main app object.
 fn init_app<'a, 'b>() -> clap::App<'a, 'b> {
+	let version_str: &'static str = {
+		#[cfg(not(feature = "embed_daemon"))]
+		{
+			concat!(clap::crate_version!(), " (standalone)")
+		}
+		#[cfg(feature = "embed_daemon")]
+		{
+			clap::crate_version!()
+		}
+	};
 	clap::App::new("hal-simplicity")
 		.bin_name("hal-simplicity")
-		.version(clap::crate_version!())
+		.version(version_str)
 		.about("hal-simplicity -- a Simplicity-enabled fork of hal")
 		.setting(clap::AppSettings::GlobalVersion)
 		.setting(clap::AppSettings::VersionlessSubcommands)
