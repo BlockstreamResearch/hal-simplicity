@@ -32,6 +32,8 @@ jobs:
   Stable:
     name: Test - stable toolchain
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -44,12 +46,14 @@ jobs:
       - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@stable
       - name: "Run test script"
-        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh stable
+        run: ./maintainer-tools/ci/run_task.sh stable
 
   Nightly:
     name: Test - nightly toolchain
     needs: Prepare
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -64,12 +68,14 @@ jobs:
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Run test script"
-        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh nightly
+        run: ./maintainer-tools/ci/run_task.sh nightly
 
   MSRV:
     name: Test - MSRV
     needs: Prepare
     runs-on: ubuntu-latest
+    env:
+      RUST_TEST_THREADS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +90,7 @@ jobs:
         with:
           toolchain: ${{ needs.Prepare.outputs.msrv_version }}
       - name: "Run test script"
-        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh msrv
+        run: ./maintainer-tools/ci/run_task.sh msrv
 
   Lint:
     name: Lint - nightly toolchain
