@@ -229,7 +229,11 @@ impl HalSimplicity {
 	}
 
 	/// Decode a raw transaction
-	pub fn tx_decode(&self, raw_tx: String, network: Option<String>) -> Result<TxDecodeResponse, ClientError> {
+	pub fn tx_decode(
+		&self,
+		raw_tx: String,
+		network: Option<String>,
+	) -> Result<TxDecodeResponse, ClientError> {
 		let params = TxDecodeRequest {
 			raw_tx,
 			network,
