@@ -9,6 +9,7 @@ use thiserror::Error;
 #[cfg(feature = "embed_daemon")]
 use hal_simplicity_daemon::HalSimplicityDaemon;
 
+#[cfg(feature = "embed_daemon")]
 const DEFAULT_DAEMON_ADDRESS: &str = "127.0.0.1:28579";
 const DEFAULT_DAEMON_URL: &str = "http://localhost:28579";
 

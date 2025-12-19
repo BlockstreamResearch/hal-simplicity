@@ -1,3 +1,4 @@
+pub extern crate elements;
 pub extern crate simplicity;
 
 pub mod jsonrpc;

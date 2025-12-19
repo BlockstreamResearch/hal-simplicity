@@ -472,24 +472,16 @@ dependencies = [
 name = "hal-simplicity-client"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "clap",
- "elements",
  "fern",
- "hal",
  "hal-simplicity-daemon",
  "hex",
- "http-body-util",
- "hyper",
- "hyper-util",
  "log",
  "reqwest",
  "serde",
  "serde_json",
  "serde_yaml",
- "simplicity-lang",
  "thiserror",
- "tokio",
 ]
 
 [[package]]

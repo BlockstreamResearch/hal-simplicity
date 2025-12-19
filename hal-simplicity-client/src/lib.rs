@@ -1,4 +1,4 @@
-pub extern crate simplicity;
+pub use hal_simplicity_daemon::{elements, simplicity};
 
 pub mod hal_simplicity_client;
 

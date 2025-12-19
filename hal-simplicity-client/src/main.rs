@@ -1,7 +1,8 @@
 use std::panic;
 use std::process;
 
-pub use elements::bitcoin;
+pub use hal_simplicity::elements;
+pub use hal_simplicity::elements::bitcoin;
 
 pub mod cmd;
 
