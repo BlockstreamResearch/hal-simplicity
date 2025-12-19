@@ -1,10 +1,31 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // Re-exports for proper serialization
 pub use elements::bitcoin::secp256k1;
 pub use elements::hashes::sha256;
 pub use simplicity::bitcoin::secp256k1::schnorr;
 pub use simplicity::{Amr, Cmr, Ihr};
+
+// Custom serialization for Parity as 0 or 1
+mod parity_serde {
+	use super::*;
+
+	pub fn serialize<S>(parity: &secp256k1::Parity, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_u8(parity.to_i32() as u8)
+	}
+
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<secp256k1::Parity, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let value = u8::deserialize(deserializer)?;
+		secp256k1::Parity::from_i32(value as i32)
+			.map_err(|_| serde::de::Error::custom(format!("invalid parity value: {}", value)))
+	}
+}
 
 // Address types
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +76,7 @@ pub struct KeypairGenerateRequest {}
 pub struct KeypairGenerateResponse {
 	pub secret: secp256k1::SecretKey,
 	pub x_only: secp256k1::XOnlyPublicKey,
+	#[serde(with = "parity_serde")]
 	pub parity: secp256k1::Parity,
 }
 
