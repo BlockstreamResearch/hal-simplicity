@@ -3,12 +3,10 @@ use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
 use thiserror::Error;
 
-use crate::utils::{
-	address::{AddressInfo, Addresses},
-	Network,
-};
+use crate::utils::address::{AddressInfo, Addresses};
 
 use crate::types::AddressCreateRequest;
+use crate::types::Network;
 
 #[derive(Debug, Error)]
 pub enum AddressError {

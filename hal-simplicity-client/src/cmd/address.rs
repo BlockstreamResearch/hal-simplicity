@@ -1,8 +1,9 @@
 use clap;
 
 use crate::cmd;
-use crate::Network;
 use hal_simplicity::hal_simplicity_client::HalSimplicity;
+
+use hal_simplicity_daemon::Network;
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("address", "work with addresses")

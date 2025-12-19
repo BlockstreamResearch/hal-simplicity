@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use hal::HexBytes;
 
-use super::{GetInfo, Network};
+use super::GetInfo;
+use crate::types::Network;
 
 use super::confidential::{ConfidentialAssetInfo, ConfidentialNonceInfo, ConfidentialValueInfo};
 

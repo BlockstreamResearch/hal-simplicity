@@ -3,6 +3,8 @@ pub extern crate simplicity;
 pub mod jsonrpc;
 pub mod types;
 
+pub use types::Network;
+
 #[cfg(feature = "daemon")]
 pub mod daemon;
 #[cfg(feature = "daemon")]

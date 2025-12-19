@@ -1,3 +1,4 @@
+use elements::AddressParams;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // Re-exports for proper serialization
@@ -5,6 +6,37 @@ pub use elements::bitcoin::secp256k1;
 pub use elements::hashes::sha256;
 pub use simplicity::bitcoin::secp256k1::schnorr;
 pub use simplicity::{Amr, Cmr, Ihr};
+
+/// Known Elements networks.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Network {
+	ElementsRegtest,
+	Liquid,
+	LiquidTestnet,
+}
+
+impl Network {
+	pub fn from_params(params: &'static AddressParams) -> Option<Network> {
+		if *params == AddressParams::ELEMENTS {
+			Some(Network::ElementsRegtest)
+		} else if *params == AddressParams::LIQUID_TESTNET {
+			Some(Network::LiquidTestnet)
+		} else if *params == AddressParams::LIQUID {
+			Some(Network::Liquid)
+		} else {
+			None
+		}
+	}
+
+	pub fn address_params(self) -> &'static AddressParams {
+		match self {
+			Network::ElementsRegtest => &AddressParams::ELEMENTS,
+			Network::Liquid => &AddressParams::LIQUID,
+			Network::LiquidTestnet => &AddressParams::LIQUID_TESTNET,
+		}
+	}
+}
 
 // Custom serialization for Parity as 0 or 1
 mod parity_serde {

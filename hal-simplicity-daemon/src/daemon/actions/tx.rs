@@ -21,7 +21,8 @@ use crate::utils::tx::{
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
 
-use crate::utils::{GetInfo, Network};
+use crate::types::Network;
+use crate::utils::GetInfo;
 
 use crate::types::{TxCreateRequest, TxDecodeRequest};
 

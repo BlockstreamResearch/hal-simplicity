@@ -3,8 +3,6 @@ use std::process;
 
 pub use elements::bitcoin;
 
-pub use hal_simplicity_daemon::utils::{GetInfo, Network};
-
 pub mod cmd;
 
 use hal_simplicity::hal_simplicity_client::HalSimplicity;
@@ -80,7 +78,16 @@ fn main() {
 	let client = if let Some(url) = matches.value_of("daemon-url") {
 		HalSimplicity::new(url.to_string())
 	} else {
-		HalSimplicity::default()
+		#[cfg(feature = "embed_daemon")]
+		{
+			HalSimplicity::default()
+		}
+		#[cfg(not(feature = "embed_daemon"))]
+		{
+			eprintln!("Error: --daemon-url is required when embed_daemon feature is disabled");
+			eprintln!("Usage: hal-simplicity --daemon-url <URL> <COMMAND>");
+			process::exit(1);
+		}
 	};
 
 	let client = client.unwrap_or_else(|e| {
