@@ -44,7 +44,7 @@ jobs:
       - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@stable
       - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh stable
+        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh stable
 
   Nightly:
     name: Test - nightly toolchain
@@ -64,7 +64,7 @@ jobs:
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh nightly
+        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh nightly
 
   MSRV:
     name: Test - MSRV
@@ -84,7 +84,7 @@ jobs:
         with:
           toolchain: ${{ needs.Prepare.outputs.msrv_version }}
       - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh msrv
+        run: RUST_TEST_THREADS=1 ./maintainer-tools/ci/run_task.sh msrv
 
   Lint:
     name: Lint - nightly toolchain
