@@ -2,7 +2,7 @@
 
 use std::process::Command;
 
-use elements::hashes::hex::DisplayHex;
+use hal_simplicity_daemon::elements::hashes::hex::DisplayHex;
 
 fn self_command_str() -> &'static str {
 	env!("CARGO_BIN_EXE_hal-simplicity")
@@ -1030,7 +1030,7 @@ FLAGS:
 
 	// New block to avoid warnings about `struct`s being defined not at the beginning of block
 	{
-		use elements::bitcoin::secp256k1;
+		use hal_simplicity_daemon::elements::bitcoin::secp256k1;
 
 		#[allow(dead_code)]
 		#[derive(serde::Deserialize)]
