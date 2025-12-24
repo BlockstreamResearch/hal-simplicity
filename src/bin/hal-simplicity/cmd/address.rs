@@ -2,10 +2,38 @@ use clap;
 use elements::bitcoin::{secp256k1, PublicKey};
 use elements::hashes::Hash;
 use elements::{Address, WPubkeyHash, WScriptHash};
+use hal_simplicity::address::{AddressInfo, Addresses};
 
 use crate::cmd;
 
 use crate::Network;
+
+#[derive(Debug, thiserror::Error)]
+pub enum AddressError {
+	#[error("invalid blinder hex: {0}")]
+	BlinderHex(hex::FromHexError),
+
+	#[error("invalid blinder: {0}")]
+	BlinderInvalid(secp256k1::Error),
+
+	#[error("invalid pubkey: {0}")]
+	PubkeyInvalid(elements::bitcoin::key::ParsePublicKeyError),
+
+	#[error("invalid script hex: {0}")]
+	ScriptHex(hex::FromHexError),
+
+	#[error("can't create addresses without a pubkey")]
+	MissingInput,
+
+	#[error("invalid address format: {0}")]
+	AddressParse(elements::address::AddressError),
+
+	#[error("no address provided")]
+	NoAddressProvided,
+
+	#[error("addresses always have params")]
+	AddressesAlwaysHaveParams,
+}
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("address", "work with addresses")
@@ -33,24 +61,36 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 fn exec_create<'a>(matches: &clap::ArgMatches<'a>) {
 	let network = cmd::network(matches);
 
-	let blinder = matches.value_of("blinder").map(|b| {
-		let bytes = hex::decode(b).expect("invaid blinder hex");
-		secp256k1::PublicKey::from_slice(&bytes).expect("invalid blinder")
-	});
+	match exec_create_inner(matches, network) {
+		Ok(addresses) => cmd::print_output(matches, &addresses),
+		Err(e) => panic!("{}", e),
+	}
+}
+
+fn exec_create_inner(
+	matches: &clap::ArgMatches<'_>,
+	network: Network,
+) -> Result<Addresses, AddressError> {
+	let blinder = matches
+		.value_of("blinder")
+		.map(|b| {
+			let bytes = hex::decode(b).map_err(AddressError::BlinderHex)?;
+			secp256k1::PublicKey::from_slice(&bytes).map_err(AddressError::BlinderInvalid)
+		})
+		.transpose()?;
 
 	let created = if let Some(pubkey_hex) = matches.value_of("pubkey") {
-		let pubkey: PublicKey = pubkey_hex.parse().expect("invalid pubkey");
-		hal_simplicity::address::Addresses::from_pubkey(&pubkey, blinder, network)
+		let pubkey: PublicKey = pubkey_hex.parse().map_err(AddressError::PubkeyInvalid)?;
+		Addresses::from_pubkey(&pubkey, blinder, network)
 	} else if let Some(script_hex) = matches.value_of("script") {
-		let script_bytes = hex::decode(script_hex).expect("invalid script hex");
+		let script_bytes = hex::decode(script_hex).map_err(AddressError::ScriptHex)?;
 		let script = script_bytes.into();
-
-		hal_simplicity::address::Addresses::from_script(&script, blinder, network)
+		Addresses::from_script(&script, blinder, network)
 	} else {
-		panic!("Can't create addresses without a pubkey");
+		return Err(AddressError::MissingInput);
 	};
 
-	cmd::print_output(matches, &created)
+	Ok(created)
 }
 
 fn cmd_inspect<'a>() -> clap::App<'a, 'a> {
@@ -59,12 +99,20 @@ fn cmd_inspect<'a>() -> clap::App<'a, 'a> {
 }
 
 fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
-	let address_str = matches.value_of("address").expect("no address provided");
-	let address: Address = address_str.parse().expect("invalid address format");
+	match create_inspect_inner(matches) {
+		Ok(info) => cmd::print_output(matches, &info),
+		Err(e) => panic!("{}", e),
+	}
+}
+
+fn create_inspect_inner(matches: &clap::ArgMatches<'_>) -> Result<AddressInfo, AddressError> {
+	let address_str = matches.value_of("address").ok_or(AddressError::NoAddressProvided)?;
+	let address: Address = address_str.parse().map_err(AddressError::AddressParse)?;
 	let script_pk = address.script_pubkey();
 
 	let mut info = hal_simplicity::address::AddressInfo {
-		network: Network::from_params(address.params).expect("addresses always have params"),
+		network: Network::from_params(address.params)
+			.ok_or(AddressError::AddressesAlwaysHaveParams)?,
 		script_pub_key: hal::tx::OutputScriptInfo {
 			hex: Some(script_pk.to_bytes().into()),
 			asm: Some(script_pk.asm()),
@@ -124,5 +172,5 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 		}
 	}
 
-	cmd::print_output(matches, &info)
+	Ok(info)
 }

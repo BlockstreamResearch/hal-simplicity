@@ -9,7 +9,6 @@ mod update_input;
 
 use std::sync::Arc;
 
-use super::{Error, ErrorExt as _};
 use crate::cmd;
 
 use elements::hashes::Hash as _;
@@ -20,6 +19,29 @@ use hal_simplicity::simplicity::elements::Transaction;
 use hal_simplicity::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use hal_simplicity::simplicity::Cmr;
 use serde::Serialize;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetError {
+	#[error("input index {index} out-of-range for PSET with {total} inputs")]
+	InputIndexOutOfRange {
+		index: usize,
+		total: usize,
+	},
+
+	#[error("failed to parse genesis hash: {0}")]
+	GenesisHashParse(elements::hashes::hex::HexToArrayError),
+
+	#[error("could not find Simplicity leaf in PSET taptree with CMR {cmr})")]
+	MissingSimplicityLeaf {
+		cmr: String,
+	},
+
+	#[error("failed to extract transaction from PSET: {0}")]
+	PsetExtract(elements::pset::Error),
+
+	#[error("witness_utxo field not populated for input {0}")]
+	MissingWitnessUtxo(usize),
+}
 
 #[derive(Serialize)]
 struct UpdatedPset {
@@ -52,19 +74,16 @@ fn execution_environment(
 	input_idx: usize,
 	cmr: Cmr,
 	genesis_hash: Option<&str>,
-) -> Result<(ElementsEnv<Arc<Transaction>>, ControlBlock, Script), Error> {
+) -> Result<(ElementsEnv<Arc<Transaction>>, ControlBlock, Script), PsetError> {
 	let n_inputs = pset.n_inputs();
-	let input = pset
-		.inputs()
-		.get(input_idx)
-		.ok_or_else(|| {
-			format!("index {} out-of-range for PSET with {} inputs", input_idx, n_inputs)
-		})
-		.result_context("parsing input index")?;
+	let input = pset.inputs().get(input_idx).ok_or(PsetError::InputIndexOutOfRange {
+		index: input_idx,
+		total: n_inputs,
+	})?;
 
 	// Default to Liquid Testnet genesis block
 	let genesis_hash = match genesis_hash {
-		Some(s) => s.parse().result_context("parsing genesis hash")?,
+		Some(s) => s.parse().map_err(PsetError::GenesisHashParse)?,
 		None => elements::BlockHash::from_byte_array([
 			// copied out of simplicity-webide source
 			0xc1, 0xb1, 0x6a, 0xe2, 0x4f, 0x24, 0x23, 0xae, 0xa2, 0xea, 0x34, 0x55, 0x22, 0x92,
@@ -82,14 +101,15 @@ fn execution_environment(
 		}
 	}
 	let (control_block, tap_leaf) = match control_block_leaf {
-	    Some((cb, leaf)) => (cb, leaf),
-	    None => {
-        	return Err(format!("could not find Simplicity leaf in PSET taptree with CMR {}; did you forget to run 'simplicity pset update-input'?", cmr))
-        	    .result_context("PSET tap_scripts field")
-        }
+		Some((cb, leaf)) => (cb, leaf),
+		None => {
+			return Err(PsetError::MissingSimplicityLeaf {
+				cmr: cmr.to_string(),
+			});
+		}
 	};
 
-	let tx = pset.extract_tx().result_context("extracting transaction from PSET")?;
+	let tx = pset.extract_tx().map_err(PsetError::PsetExtract)?;
 	let tx = Arc::new(tx);
 
 	let input_utxos = pset
@@ -102,10 +122,9 @@ fn execution_environment(
 				asset: utxo.asset,
 				value: utxo.value,
 			}),
-			None => Err(format!("witness_utxo field not populated for input {n}")),
+			None => Err(PsetError::MissingWitnessUtxo(n)),
 		})
-		.collect::<Result<Vec<_>, _>>()
-		.result_context("extracting input UTXO information")?;
+		.collect::<Result<Vec<_>, _>>()?;
 
 	let tx_env = ElementsEnv::new(
 		tx,

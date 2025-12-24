@@ -3,8 +3,20 @@
 
 use elements::encode::serialize_hex;
 
-use super::super::{Error, ErrorExt as _};
-use crate::cmd;
+use super::super::Error;
+use crate::cmd::{self, simplicity::pset::PsetError};
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetExtractError {
+	#[error(transparent)]
+	SharedError(#[from] PsetError),
+
+	#[error("invalid PSET: {0}")]
+	PsetDecode(elements::pset::ParseError),
+
+	#[error("ailed to extract transaction: {0}")]
+	TransactionExtract(elements::pset::Error),
+}
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("extract", "extract a raw transaction from a completed PSET")
@@ -16,14 +28,19 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let pset_b64 = matches.value_of("pset").expect("tx mandatory");
 	match exec_inner(pset_b64) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
-fn exec_inner(pset_b64: &str) -> Result<String, Error> {
+fn exec_inner(pset_b64: &str) -> Result<String, PsetExtractError> {
 	let pset: elements::pset::PartiallySignedTransaction =
-		pset_b64.parse().result_context("decoding PSET")?;
+		pset_b64.parse().map_err(PsetExtractError::PsetDecode)?;
 
-	let tx = pset.extract_tx().result_context("extracting transaction")?;
+	let tx = pset.extract_tx().map_err(PsetExtractError::TransactionExtract)?;
 	Ok(serialize_hex(&tx))
 }

@@ -1,9 +1,10 @@
 // Copyright 2025 Andrew Poelstra
 // SPDX-License-Identifier: CC0-1.0
 
-use super::super::{Error, ErrorExt as _};
+use super::super::Error;
 use super::UpdatedPset;
 use crate::cmd;
+use crate::cmd::simplicity::pset::PsetError;
 
 use elements::confidential;
 use elements::pset::PartiallySignedTransaction;
@@ -11,6 +12,27 @@ use elements::{Address, AssetId, OutPoint, Transaction, TxIn, TxOut, Txid};
 use serde::Deserialize;
 
 use std::collections::HashMap;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetCreateError {
+	#[error(transparent)]
+	SharedError(#[from] PsetError),
+
+	#[error("invalid inputs JSON: {0}")]
+	InputsJsonParse(serde_json::Error),
+
+	#[error("invalid outputs JSON: {0}")]
+	OutputsJsonParse(serde_json::Error),
+
+	#[error("invalid amount: {0}")]
+	AmountParse(elements::bitcoin::amount::ParseAmountError),
+
+	#[error("invalid address: {0}")]
+	AddressParse(elements::address::AddressError),
+
+	#[error("confidential addresses are not yet supported")]
+	ConfidentialAddressNotSupported,
+}
 
 #[derive(Deserialize)]
 struct InputSpec {
@@ -41,7 +63,7 @@ enum OutputSpec {
 }
 
 impl OutputSpec {
-	fn flatten(self) -> Box<dyn Iterator<Item = Result<FlattenedOutputSpec, Error>>> {
+	fn flatten(self) -> Box<dyn Iterator<Item = Result<FlattenedOutputSpec, PsetCreateError>>> {
 		match self {
 			Self::Map(map) => Box::new(map.into_iter().map(|(address, amount)| {
 				// Use liquid bitcoin asset as default for map format
@@ -56,7 +78,7 @@ impl OutputSpec {
 					address,
 					asset: default_asset,
 					amount: elements::bitcoin::Amount::from_btc(amount)
-						.result_context("parsing amount")?,
+						.map_err(PsetCreateError::AmountParse)?,
 				})
 			})),
 			Self::Explicit {
@@ -95,18 +117,23 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(inputs_json, outputs_json) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
-fn exec_inner(inputs_json: &str, outputs_json: &str) -> Result<UpdatedPset, Error> {
+fn exec_inner(inputs_json: &str, outputs_json: &str) -> Result<UpdatedPset, PsetCreateError> {
 	// Parse inputs JSON
 	let input_specs: Vec<InputSpec> =
-		serde_json::from_str(inputs_json).result_context("parsing inputs JSON")?;
+		serde_json::from_str(inputs_json).map_err(PsetCreateError::InputsJsonParse)?;
 
 	// Parse outputs JSON - support both array and map formats
 	let output_specs: Vec<OutputSpec> =
-		serde_json::from_str(outputs_json).result_context("parsing outputs JSON")?;
+		serde_json::from_str(outputs_json).map_err(PsetCreateError::OutputsJsonParse)?;
 
 	// Create transaction inputs
 	let mut inputs = Vec::new();
@@ -132,10 +159,9 @@ fn exec_inner(inputs_json: &str, outputs_json: &str) -> Result<UpdatedPset, Erro
 		let script_pubkey = match output_spec.address.as_str() {
 			"fee" => elements::Script::new(),
 			x => {
-				let addr = x.parse::<Address>().result_context("parsing address")?;
+				let addr = x.parse::<Address>().map_err(PsetCreateError::AddressParse)?;
 				if addr.is_blinded() {
-					return Err("confidential addresses are not yet supported")
-						.result_context("output address");
+					return Err(PsetCreateError::ConfidentialAddressNotSupported);
 				}
 				addr.script_pubkey()
 			}

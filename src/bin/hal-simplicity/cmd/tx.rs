@@ -2,7 +2,7 @@ use std::convert::TryInto;
 use std::io::Write;
 
 use clap;
-use elements::bitcoin;
+use elements::bitcoin::{self, secp256k1};
 use elements::encode::{deserialize, serialize};
 use elements::hashes::Hash;
 use elements::secp256k1_zkp::{
@@ -23,6 +23,89 @@ use hal_simplicity::tx::{
 	OutputWitnessInfo, PeginDataInfo, PegoutDataInfo, TransactionInfo,
 };
 use hal_simplicity::Network;
+
+#[derive(Debug, thiserror::Error)]
+pub enum TxError {
+	#[error("invalid JSON provided: {0}")]
+	JsonParse(serde_json::Error),
+
+	#[error("failed to decode raw transaction hex: {0}")]
+	TxHex(hex::FromHexError),
+
+	#[error("invalid tx format: {0}")]
+	TxDeserialize(elements::encode::Error),
+
+	#[error("field \"{field}\" is required.")]
+	MissingField {
+		field: String,
+	},
+
+	#[error("invalid prevout format: {0}")]
+	PrevoutParse(bitcoin::blockdata::transaction::ParseOutPointError),
+
+	#[error("txid field given without vout field")]
+	MissingVout,
+
+	#[error("conflicting prevout information")]
+	ConflictingPrevout,
+
+	#[error("no previous output provided")]
+	NoPrevout,
+
+	#[error("invalid confidential commitment: {0}")]
+	ConfidentialCommitment(elements::secp256k1_zkp::Error),
+
+	#[error("invalid confidential publicKey: {0}")]
+	ConfidentialCommitmentPublicKey(secp256k1::Error),
+
+	#[error("wrong size of nonce field")]
+	NonceSize,
+
+	#[error("invalid size of asset_entropy")]
+	AssetEntropySize,
+
+	#[error("invalid asset_blinding_nonce: {0}")]
+	AssetBlindingNonce(elements::secp256k1_zkp::Error),
+
+	#[error("decoding script assembly is not yet supported")]
+	AsmNotSupported,
+
+	#[error("no scriptSig info provided")]
+	NoScriptSig,
+
+	#[error("no scriptPubKey info provided")]
+	NoScriptPubKey,
+
+	#[error("invalid outpoint in pegin_data: {0}")]
+	PeginOutpoint(bitcoin::blockdata::transaction::ParseOutPointError),
+
+	#[error("outpoint in pegin_data does not correspond to input value")]
+	PeginOutpointMismatch,
+
+	#[error("asset in pegin_data should be explicit")]
+	PeginAssetNotExplicit,
+
+	#[error("invalid rangeproof: {0}")]
+	RangeProof(elements::secp256k1_zkp::Error),
+
+	#[error("invalid sequence: {0}")]
+	Sequence(core::num::TryFromIntError),
+
+	#[error("addresses for different networks are used in the output scripts")]
+	MixedNetworks,
+
+	#[error("invalid surjection proof: {0}")]
+	SurjectionProof(elements::secp256k1_zkp::Error),
+
+	#[error("value in pegout_data does not correspond to output value")]
+	PegoutValueMismatch,
+
+	#[error("explicit value is required for pegout data")]
+	PegoutValueNotExplicit,
+
+	#[error("asset in pegout_data does not correspond to output value")]
+	PegoutAssetMismatch,
+}
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("tx", "manipulate transactions")
@@ -47,17 +130,17 @@ fn cmd_create<'a>() -> clap::App<'a, 'a> {
 	])
 }
 
-/// Check both ways to specify the outpoint and panic if conflicting.
-fn outpoint_from_input_info(input: &InputInfo) -> OutPoint {
+/// Check both ways to specify the outpoint and return error if conflicting.
+fn outpoint_from_input_info(input: &InputInfo) -> Result<OutPoint, TxError> {
 	let op1: Option<OutPoint> =
-		input.prevout.as_ref().map(|op| op.parse().expect("invalid prevout format"));
+		input.prevout.as_ref().map(|op| op.parse().map_err(TxError::PrevoutParse)).transpose()?;
 	let op2 = match input.txid {
 		Some(txid) => match input.vout {
 			Some(vout) => Some(OutPoint {
 				txid,
 				vout,
 			}),
-			None => panic!("\"txid\" field given in input without \"vout\" field"),
+			None => return Err(TxError::MissingVout),
 		},
 		None => None,
 	};
@@ -65,13 +148,13 @@ fn outpoint_from_input_info(input: &InputInfo) -> OutPoint {
 	match (op1, op2) {
 		(Some(op1), Some(op2)) => {
 			if op1 != op2 {
-				panic!("Conflicting prevout information in input.");
+				return Err(TxError::ConflictingPrevout);
 			}
-			op1
+			Ok(op1)
 		}
-		(Some(op), None) => op,
-		(None, Some(op)) => op,
-		(None, None) => panic!("No previous output provided in input."),
+		(Some(op), None) => Ok(op),
+		(None, Some(op)) => Ok(op),
+		(None, None) => Err(TxError::NoPrevout),
 	}
 }
 
@@ -87,120 +170,130 @@ fn bytes_32(bytes: &[u8]) -> Option<[u8; 32]> {
 	}
 }
 
-fn create_confidential_value(info: ConfidentialValueInfo) -> confidential::Value {
+fn create_confidential_value(info: ConfidentialValueInfo) -> Result<confidential::Value, TxError> {
 	match info.type_ {
-		ConfidentialType::Null => confidential::Value::Null,
-		ConfidentialType::Explicit => confidential::Value::Explicit(
-			info.value.expect("Field \"value\" is required for explicit values."),
-		),
+		ConfidentialType::Null => Ok(confidential::Value::Null),
+		ConfidentialType::Explicit => {
+			Ok(confidential::Value::Explicit(info.value.ok_or_else(|| TxError::MissingField {
+				field: "value".to_string(),
+			})?))
+		}
 		ConfidentialType::Confidential => {
-			let comm = PedersenCommitment::from_slice(
-				&info
-					.commitment
-					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..],
-			)
-			.expect("invalid confidential commitment");
-			confidential::Value::Confidential(comm)
+			let commitment_data = info.commitment.ok_or_else(|| TxError::MissingField {
+				field: "commitment".to_string(),
+			})?;
+			let comm = PedersenCommitment::from_slice(&commitment_data.0[..])
+				.map_err(TxError::ConfidentialCommitment)?;
+			Ok(confidential::Value::Confidential(comm))
 		}
 	}
 }
 
-fn create_confidential_asset(info: ConfidentialAssetInfo) -> confidential::Asset {
+fn create_confidential_asset(info: ConfidentialAssetInfo) -> Result<confidential::Asset, TxError> {
 	match info.type_ {
-		ConfidentialType::Null => confidential::Asset::Null,
-		ConfidentialType::Explicit => confidential::Asset::Explicit(
-			info.asset.expect("Field \"asset\" is required for explicit assets."),
-		),
+		ConfidentialType::Null => Ok(confidential::Asset::Null),
+		ConfidentialType::Explicit => {
+			Ok(confidential::Asset::Explicit(info.asset.ok_or_else(|| TxError::MissingField {
+				field: "asset".to_string(),
+			})?))
+		}
 		ConfidentialType::Confidential => {
-			let gen = Generator::from_slice(
-				&info
-					.commitment
-					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..],
-			)
-			.expect("invalid confidential commitment");
-			confidential::Asset::Confidential(gen)
+			let commitment_data = info.commitment.ok_or_else(|| TxError::MissingField {
+				field: "commitment".to_string(),
+			})?;
+			let gen = Generator::from_slice(&commitment_data.0[..])
+				.map_err(TxError::ConfidentialCommitment)?;
+			Ok(confidential::Asset::Confidential(gen))
 		}
 	}
 }
 
-fn create_confidential_nonce(info: ConfidentialNonceInfo) -> confidential::Nonce {
+fn create_confidential_nonce(info: ConfidentialNonceInfo) -> Result<confidential::Nonce, TxError> {
 	match info.type_ {
-		ConfidentialType::Null => confidential::Nonce::Null,
-		ConfidentialType::Explicit => confidential::Nonce::Explicit(
-			bytes_32(&info.nonce.expect("Field \"nonce\" is required for asset issuances.").0[..])
-				.expect("wrong size of \"nonce\" field"),
-		),
+		ConfidentialType::Null => Ok(confidential::Nonce::Null),
+		ConfidentialType::Explicit => {
+			let nonce = info.nonce.ok_or_else(|| TxError::MissingField {
+				field: "nonce".to_string(),
+			})?;
+			let bytes = bytes_32(&nonce.0[..]).ok_or(TxError::NonceSize)?;
+			Ok(confidential::Nonce::Explicit(bytes))
+		}
 		ConfidentialType::Confidential => {
-			let pubkey = PublicKey::from_slice(
-				&info
-					.commitment
-					.expect("Field \"commitment\" is required for confidential values.")
-					.0[..],
-			)
-			.expect("invalid confidential commitment");
-			confidential::Nonce::Confidential(pubkey)
+			let commitment_data = info.commitment.ok_or_else(|| TxError::MissingField {
+				field: "commitment".to_string(),
+			})?;
+			let pubkey = PublicKey::from_slice(&commitment_data.0[..])
+				.map_err(TxError::ConfidentialCommitmentPublicKey)?;
+			Ok(confidential::Nonce::Confidential(pubkey))
 		}
 	}
 }
 
-fn create_asset_issuance(info: AssetIssuanceInfo) -> AssetIssuance {
-	AssetIssuance {
-		asset_blinding_nonce: Tweak::from_slice(
-			&info
-				.asset_blinding_nonce
-				.expect("Field \"asset_blinding_nonce\" is required for asset issuances.")
-				.0[..],
-		)
-		.expect("Invalid \"asset_blinding_nonce\"."),
-		asset_entropy: bytes_32(
-			&info
-				.asset_entropy
-				.expect("Field \"asset_entropy\" is required for asset issuances.")
-				.0[..],
-		)
-		.expect("Invalid size of \"asset_entropy\"."),
-		amount: create_confidential_value(
-			info.amount.expect("Field \"amount\" is required for asset issuances."),
-		),
-		inflation_keys: create_confidential_value(
-			info.inflation_keys.expect("Field \"inflation_keys\" is required for asset issuances."),
-		),
-	}
+fn create_asset_issuance(info: AssetIssuanceInfo) -> Result<AssetIssuance, TxError> {
+	let asset_blinding_nonce_data =
+		info.asset_blinding_nonce.ok_or_else(|| TxError::MissingField {
+			field: "asset_blinding_nonce".to_string(),
+		})?;
+	let asset_blinding_nonce =
+		Tweak::from_slice(&asset_blinding_nonce_data.0[..]).map_err(TxError::AssetBlindingNonce)?;
+
+	let asset_entropy_data = info.asset_entropy.ok_or_else(|| TxError::MissingField {
+		field: "asset_entropy".to_string(),
+	})?;
+	let asset_entropy = bytes_32(&asset_entropy_data.0[..]).ok_or(TxError::AssetEntropySize)?;
+
+	let amount_info = info.amount.ok_or_else(|| TxError::MissingField {
+		field: "amount".to_string(),
+	})?;
+	let amount = create_confidential_value(amount_info)?;
+
+	let inflation_keys_info = info.inflation_keys.ok_or_else(|| TxError::MissingField {
+		field: "inflation_keys".to_string(),
+	})?;
+	let inflation_keys = create_confidential_value(inflation_keys_info)?;
+
+	Ok(AssetIssuance {
+		asset_blinding_nonce,
+		asset_entropy,
+		amount,
+		inflation_keys,
+	})
 }
 
-fn create_script_sig(ss: InputScriptInfo) -> Script {
+fn create_script_sig(ss: InputScriptInfo) -> Result<Script, TxError> {
 	if let Some(hex) = ss.hex {
 		if ss.asm.is_some() {
 			warn!("Field \"asm\" of input is ignored.");
 		}
-
-		hex.0.into()
+		Ok(hex.0.into())
 	} else if ss.asm.is_some() {
-		panic!("Decoding script assembly is not yet supported.");
+		Err(TxError::AsmNotSupported)
 	} else {
-		panic!("No scriptSig info provided.");
+		Err(TxError::NoScriptSig)
 	}
 }
 
-fn create_pegin_witness(pd: PeginDataInfo, prevout: bitcoin::OutPoint) -> Vec<Vec<u8>> {
-	if prevout != pd.outpoint.parse().expect("Invalid outpoint in field \"pegin_data\".") {
-		panic!("Outpoint in \"pegin_data\" does not correspond to input value.");
+fn create_pegin_witness(
+	pd: PeginDataInfo,
+	prevout: bitcoin::OutPoint,
+) -> Result<Vec<Vec<u8>>, TxError> {
+	let parsed_outpoint = pd.outpoint.parse().map_err(TxError::PeginOutpoint)?;
+	if prevout != parsed_outpoint {
+		return Err(TxError::PeginOutpointMismatch);
 	}
 
-	let asset = match create_confidential_asset(pd.asset) {
+	let asset = match create_confidential_asset(pd.asset)? {
 		confidential::Asset::Explicit(asset) => asset,
-		_ => panic!("Asset in \"pegin_data\" should be explicit."),
+		_ => return Err(TxError::PeginAssetNotExplicit),
 	};
-	vec![
+	Ok(vec![
 		serialize(&pd.value),
 		serialize(&asset),
 		pd.genesis_hash.to_byte_array().to_vec(),
 		serialize(&pd.claim_script.0),
 		serialize(&pd.mainchain_tx_hex.0),
 		serialize(&pd.merkle_proof.0),
-	]
+	])
 }
 
 fn convert_outpoint_to_btc(p: elements::OutPoint) -> bitcoin::OutPoint {
@@ -214,7 +307,7 @@ fn create_input_witness(
 	info: Option<InputWitnessInfo>,
 	pd: Option<PeginDataInfo>,
 	prevout: OutPoint,
-) -> TxInWitness {
+) -> Result<TxInWitness, TxError> {
 	let pegin_witness =
 		if let Some(info_wit) = info.as_ref().and_then(|info| info.pegin_witness.as_ref()) {
 			if pd.is_some() {
@@ -222,58 +315,74 @@ fn create_input_witness(
 			}
 			info_wit.iter().map(|h| h.clone().0).collect()
 		} else if let Some(pd) = pd {
-			create_pegin_witness(pd, convert_outpoint_to_btc(prevout))
+			create_pegin_witness(pd, convert_outpoint_to_btc(prevout))?
 		} else {
 			Default::default()
 		};
 
 	if let Some(wi) = info {
-		TxInWitness {
-			amount_rangeproof: wi
-				.amount_rangeproof
-				.map(|b| Box::new(RangeProof::from_slice(&b.0).expect("invalid rangeproof"))),
-			inflation_keys_rangeproof: wi
-				.inflation_keys_rangeproof
-				.map(|b| Box::new(RangeProof::from_slice(&b.0).expect("invalid rangeproof"))),
+		let amount_rangeproof = wi
+			.amount_rangeproof
+			.map(|b| RangeProof::from_slice(&b.0).map_err(TxError::RangeProof).map(Box::new))
+			.transpose()?;
+		let inflation_keys_rangeproof = wi
+			.inflation_keys_rangeproof
+			.map(|b| RangeProof::from_slice(&b.0).map_err(TxError::RangeProof).map(Box::new))
+			.transpose()?;
+
+		Ok(TxInWitness {
+			amount_rangeproof,
+			inflation_keys_rangeproof,
 			script_witness: match wi.script_witness {
 				Some(ref w) => w.iter().map(|h| h.clone().0).collect(),
 				None => Vec::new(),
 			},
 			pegin_witness,
-		}
+		})
 	} else {
-		TxInWitness {
+		Ok(TxInWitness {
 			pegin_witness,
 			..Default::default()
-		}
+		})
 	}
 }
 
-fn create_input(input: InputInfo) -> TxIn {
+fn create_input(input: InputInfo) -> Result<TxIn, TxError> {
 	let has_issuance = input.has_issuance.unwrap_or(input.asset_issuance.is_some());
 	let is_pegin = input.is_pegin.unwrap_or(input.pegin_data.is_some());
-	let prevout = outpoint_from_input_info(&input);
+	let prevout = outpoint_from_input_info(&input)?;
 
-	TxIn {
+	let script_sig = input.script_sig.map(create_script_sig).transpose()?.unwrap_or_default();
+
+	let sequence = elements::Sequence::from_height(
+		input.sequence.unwrap_or_default().try_into().map_err(TxError::Sequence)?,
+	);
+
+	let asset_issuance = if has_issuance {
+		input.asset_issuance.map(create_asset_issuance).transpose()?.unwrap_or_default()
+	} else {
+		if input.asset_issuance.is_some() {
+			warn!("Field \"asset_issuance\" of input is ignored.");
+		}
+		Default::default()
+	};
+
+	let witness = create_input_witness(input.witness, input.pegin_data, prevout)?;
+
+	Ok(TxIn {
 		previous_output: prevout,
-		script_sig: input.script_sig.map(create_script_sig).unwrap_or_default(),
-		sequence: elements::Sequence::from_height(
-			input.sequence.unwrap_or_default().try_into().unwrap(),
-		),
+		script_sig,
+		sequence,
 		is_pegin,
-		asset_issuance: if has_issuance {
-			input.asset_issuance.map(create_asset_issuance).unwrap_or_default()
-		} else {
-			if input.asset_issuance.is_some() {
-				warn!("Field \"asset_issuance\" of input is ignored.");
-			}
-			Default::default()
-		},
-		witness: create_input_witness(input.witness, input.pegin_data, prevout),
-	}
+		asset_issuance,
+		witness,
+	})
 }
 
-fn create_script_pubkey(spk: OutputScriptInfo, used_network: &mut Option<Network>) -> Script {
+fn create_script_pubkey(
+	spk: OutputScriptInfo,
+	used_network: &mut Option<Network>,
+) -> Result<Script, TxError> {
 	if spk.type_.is_some() {
 		warn!("Field \"type\" of output is ignored.");
 	}
@@ -287,28 +396,28 @@ fn create_script_pubkey(spk: OutputScriptInfo, used_network: &mut Option<Network
 		}
 
 		//TODO(stevenroose) do script sanity check to avoid blackhole?
-		hex.0.into()
+		Ok(hex.0.into())
 	} else if spk.asm.is_some() {
 		if spk.address.is_some() {
 			warn!("Field \"address\" of output is ignored.");
 		}
-
-		panic!("Decoding script assembly is not yet supported.");
+		Err(TxError::AsmNotSupported)
 	} else if let Some(address) = spk.address {
 		// Error if another network had already been used.
 		if let Some(network) = Network::from_params(address.params) {
 			if used_network.replace(network).unwrap_or(network) != network {
-				panic!("Addresses for different networks are used in the output scripts.");
+				return Err(TxError::MixedNetworks);
 			}
 		}
-
-		address.script_pubkey()
+		Ok(address.script_pubkey())
 	} else {
-		panic!("No scriptPubKey info provided.");
+		Err(TxError::NoScriptPubKey)
 	}
 }
 
-fn create_bitcoin_script_pubkey(spk: hal::tx::OutputScriptInfo) -> bitcoin::ScriptBuf {
+fn create_bitcoin_script_pubkey(
+	spk: hal::tx::OutputScriptInfo,
+) -> Result<bitcoin::ScriptBuf, TxError> {
 	if spk.type_.is_some() {
 		warn!("Field \"type\" of output is ignored.");
 	}
@@ -322,85 +431,104 @@ fn create_bitcoin_script_pubkey(spk: hal::tx::OutputScriptInfo) -> bitcoin::Scri
 		}
 
 		//TODO(stevenroose) do script sanity check to avoid blackhole?
-		hex.0.into()
+		Ok(hex.0.into())
 	} else if spk.asm.is_some() {
 		if spk.address.is_some() {
 			warn!("Field \"address\" of output is ignored.");
 		}
-
-		panic!("Decoding script assembly is not yet supported.");
+		Err(TxError::AsmNotSupported)
 	} else if let Some(address) = spk.address {
-		address.assume_checked().script_pubkey()
+		Ok(address.assume_checked().script_pubkey())
 	} else {
-		panic!("No scriptPubKey info provided.");
+		Err(TxError::NoScriptPubKey)
 	}
 }
 
-fn create_output_witness(w: OutputWitnessInfo) -> TxOutWitness {
-	TxOutWitness {
-		surjection_proof: w.surjection_proof.map(|b| {
-			Box::new(SurjectionProof::from_slice(&b.0[..]).expect("invalid surjection proof"))
-		}),
-		rangeproof: w
-			.rangeproof
-			.map(|b| Box::new(RangeProof::from_slice(&b.0[..]).expect("invalid rangeproof"))),
-	}
+fn create_output_witness(w: OutputWitnessInfo) -> Result<TxOutWitness, TxError> {
+	let surjection_proof = w
+		.surjection_proof
+		.map(|b| {
+			SurjectionProof::from_slice(&b.0[..]).map_err(TxError::SurjectionProof).map(Box::new)
+		})
+		.transpose()?;
+	let rangeproof = w
+		.rangeproof
+		.map(|b| RangeProof::from_slice(&b.0[..]).map_err(TxError::RangeProof).map(Box::new))
+		.transpose()?;
+
+	Ok(TxOutWitness {
+		surjection_proof,
+		rangeproof,
+	})
 }
 
-fn create_script_pubkey_from_pegout_data(pd: PegoutDataInfo) -> Script {
+fn create_script_pubkey_from_pegout_data(pd: PegoutDataInfo) -> Result<Script, TxError> {
+	let script_pubkey = create_bitcoin_script_pubkey(pd.script_pub_key)?;
 	let mut builder = elements::script::Builder::new()
 		.push_opcode(elements::opcodes::all::OP_RETURN)
 		.push_slice(&pd.genesis_hash.to_byte_array())
-		.push_slice(create_bitcoin_script_pubkey(pd.script_pub_key).as_bytes());
+		.push_slice(script_pubkey.as_bytes());
 	for d in pd.extra_data {
 		builder = builder.push_slice(&d.0);
 	}
-	builder.into_script()
+	Ok(builder.into_script())
 }
 
-fn create_output(output: OutputInfo) -> TxOut {
+fn create_output(output: OutputInfo) -> Result<TxOut, TxError> {
 	// Keep track of which network has been used in addresses and error if two different networks
 	// are used.
 	let mut used_network = None;
-	let value = output
-		.value
-		.map(create_confidential_value)
-		.expect("Field \"value\" is required for outputs.");
-	let asset = output
-		.asset
-		.map(create_confidential_asset)
-		.expect("Field \"asset\" is required for outputs.");
+	let value_info = output.value.ok_or_else(|| TxError::MissingField {
+		field: "value".to_string(),
+	})?;
+	let value = create_confidential_value(value_info)?;
 
-	TxOut {
+	let asset_info = output.asset.ok_or_else(|| TxError::MissingField {
+		field: "asset".to_string(),
+	})?;
+	let asset = create_confidential_asset(asset_info)?;
+
+	let nonce = output
+		.nonce
+		.map(create_confidential_nonce)
+		.transpose()?
+		.unwrap_or(confidential::Nonce::Null);
+
+	let script_pubkey = if let Some(spk) = output.script_pub_key {
+		if output.pegout_data.is_some() {
+			warn!("Field \"pegout_data\" of output is ignored.");
+		}
+		create_script_pubkey(spk, &mut used_network)?
+	} else if let Some(pd) = output.pegout_data {
+		match value {
+			confidential::Value::Explicit(v) => {
+				if v != pd.value {
+					return Err(TxError::PegoutValueMismatch);
+				}
+			}
+			_ => return Err(TxError::PegoutValueNotExplicit),
+		}
+		let pd_asset = create_confidential_asset(pd.asset.clone())?;
+		if asset != pd_asset {
+			return Err(TxError::PegoutAssetMismatch);
+		}
+		create_script_pubkey_from_pegout_data(pd)?
+	} else {
+		Default::default()
+	};
+
+	let witness = output.witness.map(create_output_witness).transpose()?.unwrap_or_default();
+
+	Ok(TxOut {
 		asset,
 		value,
-		nonce: output.nonce.map(create_confidential_nonce).unwrap_or(confidential::Nonce::Null),
-		script_pubkey: if let Some(spk) = output.script_pub_key {
-			if output.pegout_data.is_some() {
-				warn!("Field \"pegout_data\" of output is ignored.");
-			}
-			create_script_pubkey(spk, &mut used_network)
-		} else if let Some(pd) = output.pegout_data {
-			match value {
-				confidential::Value::Explicit(v) => {
-					if v != pd.value {
-						panic!("Value in \"pegout_data\" does not correspond to output value.");
-					}
-				}
-				_ => panic!("Explicit value is required for pegout data."),
-			}
-			if asset != create_confidential_asset(pd.asset.clone()) {
-				panic!("Asset in \"pegout_data\" does not correspond to output value.");
-			}
-			create_script_pubkey_from_pegout_data(pd)
-		} else {
-			Default::default()
-		},
-		witness: output.witness.map(create_output_witness).unwrap_or_default(),
-	}
+		nonce,
+		script_pubkey,
+		witness,
+	})
 }
 
-pub fn create_transaction(info: TransactionInfo) -> Transaction {
+pub fn create_transaction(info: TransactionInfo) -> Result<Transaction, TxError> {
 	// Fields that are ignored.
 	if info.txid.is_some() {
 		warn!("Field \"txid\" is ignored.");
@@ -418,28 +546,44 @@ pub fn create_transaction(info: TransactionInfo) -> Transaction {
 		warn!("Field \"vsize\" is ignored.");
 	}
 
-	Transaction {
-		version: info.version.expect("Field \"version\" is required."),
-		lock_time: info.locktime.expect("Field \"locktime\" is required."),
-		input: info
-			.inputs
-			.expect("Field \"inputs\" is required.")
-			.into_iter()
-			.map(create_input)
-			.collect(),
-		output: info
-			.outputs
-			.expect("Field \"outputs\" is required.")
-			.into_iter()
-			.map(create_output)
-			.collect(),
-	}
+	let version = info.version.ok_or_else(|| TxError::MissingField {
+		field: "version".to_string(),
+	})?;
+	let lock_time = info.locktime.ok_or_else(|| TxError::MissingField {
+		field: "locktime".to_string(),
+	})?;
+
+	let inputs = info
+		.inputs
+		.ok_or_else(|| TxError::MissingField {
+			field: "inputs".to_string(),
+		})?
+		.into_iter()
+		.map(create_input)
+		.collect::<Result<Vec<_>, _>>()?;
+
+	let outputs = info
+		.outputs
+		.ok_or_else(|| TxError::MissingField {
+			field: "outputs".to_string(),
+		})?
+		.into_iter()
+		.map(create_output)
+		.collect::<Result<Vec<_>, _>>()?;
+
+	Ok(Transaction {
+		version,
+		lock_time,
+		input: inputs,
+		output: outputs,
+	})
 }
 
 fn exec_create<'a>(matches: &clap::ArgMatches<'a>) {
 	let info = serde_json::from_str::<TransactionInfo>(&cmd::arg_or_stdin(matches, "tx-info"))
-		.expect("invalid JSON provided");
-	let tx = create_transaction(info);
+		.map_err(TxError::JsonParse)
+		.unwrap_or_else(|e| panic!("{}", e));
+	let tx = create_transaction(info).unwrap_or_else(|e| panic!("{}", e));
 
 	let tx_bytes = serialize(&tx);
 	if matches.is_present("raw-stdout") {
@@ -457,8 +601,10 @@ fn cmd_decode<'a>() -> clap::App<'a, 'a> {
 
 fn exec_decode<'a>(matches: &clap::ArgMatches<'a>) {
 	let hex_tx = cmd::arg_or_stdin(matches, "raw-tx");
-	let raw_tx = hex::decode(hex_tx.as_ref()).expect("could not decode raw tx");
-	let tx: Transaction = deserialize(&raw_tx).expect("invalid tx format");
+	let raw_tx =
+		hex::decode(hex_tx.as_ref()).map_err(TxError::TxHex).unwrap_or_else(|e| panic!("{}", e));
+	let tx: Transaction =
+		deserialize(&raw_tx).map_err(TxError::TxDeserialize).unwrap_or_else(|e| panic!("{}", e));
 
 	let info = crate::GetInfo::get_info(&tx, cmd::network(matches));
 	cmd::print_output(matches, &info)

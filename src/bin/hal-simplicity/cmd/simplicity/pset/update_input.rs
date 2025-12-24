@@ -2,16 +2,61 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::cmd;
+use crate::cmd::simplicity::pset::PsetError;
+use crate::cmd::simplicity::{parse_elements_utxo, ParseElementsUtxoError};
 
 use core::str::FromStr;
 use std::collections::BTreeMap;
 
-use super::super::{Error, ErrorExt as _};
+use super::super::Error;
 use super::UpdatedPset;
 
+use elements::bitcoin::secp256k1;
 use elements::schnorr::XOnlyPublicKey;
 use hal_simplicity::hal_simplicity::taproot_spend_info;
 use simplicity::hex::parse::FromHex as _;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetUpdateInputError {
+	#[error(transparent)]
+	SharedError(#[from] PsetError),
+
+	#[error("invalid PSET: {0}")]
+	PsetDecode(elements::pset::ParseError),
+
+	#[error("invalid input index: {0}")]
+	InputIndexParse(std::num::ParseIntError),
+
+	#[error("input index {index} out-of-range for PSET with {total} inputs")]
+	InputIndexOutOfRange {
+		index: usize,
+		total: usize,
+	},
+
+	#[error("invalid CMR: {0}")]
+	CmrParse(elements::hashes::hex::HexToArrayError),
+
+	#[error("invalid internal key: {0}")]
+	InternalKeyParse(secp256k1::Error),
+
+	#[error("internal key must be present if CMR is; PSET requires a control block for each CMR, which in turn requires the internal key. If you don't know the internal key, good chance it is the BIP-0341 'unspendable key' 50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0 or the web IDE's 'unspendable key' (highly discouraged for use in production) of f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2")]
+	MissingInternalKey,
+
+	#[error("input UTXO does not appear to be a Taproot output")]
+	NotTaprootOutput,
+
+	#[error("invalid state commitment: {0}")]
+	StateParse(elements::hashes::hex::HexToArrayError),
+
+	#[error("CMR and internal key imply output key {output_key}, which does not match input scriptPubKey {script_pubkey}")]
+	OutputKeyMismatch {
+		output_key: String,
+		script_pubkey: String,
+	},
+
+	#[error("invalid elements UTXO: {0}")]
+	ElementsUtxoParse(ParseElementsUtxoError),
+}
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("update-input", "Attach UTXO data to a PSET input")
@@ -55,7 +100,12 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(pset_b64, input_idx, input_utxo, internal_key, cmr, state) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
@@ -67,43 +117,40 @@ fn exec_inner(
 	internal_key: Option<&str>,
 	cmr: Option<&str>,
 	state: Option<&str>,
-) -> Result<UpdatedPset, Error> {
+) -> Result<UpdatedPset, PsetUpdateInputError> {
 	let mut pset: elements::pset::PartiallySignedTransaction =
-		pset_b64.parse().result_context("decoding PSET")?;
-	let input_idx: usize = input_idx.parse().result_context("parsing input-idx")?;
-	let input_utxo = super::super::parse_elements_utxo(input_utxo)?;
+		pset_b64.parse().map_err(PsetUpdateInputError::PsetDecode)?;
+	let input_idx: usize = input_idx.parse().map_err(PsetUpdateInputError::InputIndexParse)?;
+	let input_utxo =
+		parse_elements_utxo(input_utxo).map_err(PsetUpdateInputError::ElementsUtxoParse)?;
 
 	let n_inputs = pset.n_inputs();
-	let input = pset
-		.inputs_mut()
-		.get_mut(input_idx)
-		.ok_or_else(|| {
-			format!("index {} out-of-range for PSET with {} inputs", input_idx, n_inputs)
-		})
-		.result_context("parsing input index")?;
+	let input = pset.inputs_mut().get_mut(input_idx).ok_or_else(|| {
+		PsetUpdateInputError::InputIndexOutOfRange {
+			index: input_idx,
+			total: n_inputs,
+		}
+	})?;
 
-	let cmr = cmr.map(simplicity::Cmr::from_str).transpose().result_context("parsing CMR")?;
+	let cmr =
+		cmr.map(simplicity::Cmr::from_str).transpose().map_err(PsetUpdateInputError::CmrParse)?;
 	let internal_key = internal_key
 		.map(XOnlyPublicKey::from_str)
 		.transpose()
-		.result_context("parsing internal key")?;
+		.map_err(PsetUpdateInputError::InternalKeyParse)?;
 	if cmr.is_some() && internal_key.is_none() {
-		return Err("internal key must be present if CMR is; PSET requires a control block for each CMR, which in turn requires the internal key. If you don't know the internal key, good chance it is the BIP-0341 'unspendable key' 50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0 or the web IDE's 'unspendable key' (highly discouraged for use in production) of f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2")
-    	    .result_context("missing internal key");
+		return Err(PsetUpdateInputError::MissingInternalKey);
 	}
 
 	if !input_utxo.script_pubkey.is_v1_p2tr() {
-		return Err("input UTXO does not appear to be a Taproot output")
-			.result_context("input UTXO");
+		return Err(PsetUpdateInputError::NotTaprootOutput);
 	}
 
 	// FIXME state is meaningless without CMR; should we warn here
 	// FIXME also should we warn if you don't provide a CMR? seems like if you're calling `simplicity pset update-input`
 	//   you probably have a simplicity program right? maybe we should even provide a --no-cmr flag
-	let state = state
-		.map(<[u8; 32]>::from_hex)
-		.transpose()
-		.result_context("parsing 32-byte state commitment as hex")?;
+	let state =
+		state.map(<[u8; 32]>::from_hex).transpose().map_err(PsetUpdateInputError::StateParse)?;
 
 	let mut updated_values = vec![];
 	if let Some(internal_key) = internal_key {
@@ -118,8 +165,10 @@ fn exec_inner(
 			let spend_info = taproot_spend_info(internal_key, state, cmr);
 			if spend_info.output_key().as_inner().serialize() != input_utxo.script_pubkey[2..] {
 				// If our guess was wrong, at least error out..
-				return Err(format!("CMR and internal key imply output key {}, which does not match input scriptPubKey {}", spend_info.output_key().as_inner(), input_utxo.script_pubkey))
-		    	    .result_context("input UTXO");
+				return Err(PsetUpdateInputError::OutputKeyMismatch {
+					output_key: format!("{}", spend_info.output_key().as_inner()),
+					script_pubkey: format!("{}", input_utxo.script_pubkey),
+				});
 			}
 
 			// FIXME these unwraps and clones should be fixed by a new rust-bitcoin taproot API

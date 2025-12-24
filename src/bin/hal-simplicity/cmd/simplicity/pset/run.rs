@@ -2,13 +2,35 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::cmd;
+use crate::cmd::simplicity::pset::PsetError;
 
 use hal_simplicity::hal_simplicity::Program;
 use hal_simplicity::simplicity::bit_machine::{BitMachine, ExecTracker};
 use hal_simplicity::simplicity::jet;
 use hal_simplicity::simplicity::{Cmr, Ihr};
 
-use super::super::{Error, ErrorExt as _};
+use super::super::Error;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetRunError {
+	#[error(transparent)]
+	SharedError(#[from] PsetError),
+
+	#[error("invalid PSET: {0}")]
+	PsetDecode(elements::pset::ParseError),
+
+	#[error("invalid input index: {0}")]
+	InputIndexParse(std::num::ParseIntError),
+
+	#[error("invalid program: {0}")]
+	ProgramParse(simplicity::ParseError),
+
+	#[error("program does not have a redeem node")]
+	NoRedeemNode,
+
+	#[error("failed to construct bit machine: {0}")]
+	BitMachineConstruction(simplicity::bit_machine::LimitError),
+}
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("run", "Run a Simplicity program in the context of a PSET input.")
@@ -40,7 +62,12 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(pset_b64, input_idx, program, witness, genesis_hash) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
@@ -69,7 +96,7 @@ fn exec_inner(
 	program: &str,
 	witness: &str,
 	genesis_hash: Option<&str>,
-) -> Result<Response, Error> {
+) -> Result<Response, PsetRunError> {
 	struct JetTracker(Vec<JetCall>);
 	impl<J: jet::Jet> ExecTracker<J> for JetTracker {
 		fn track_left(&mut self, _: Ihr) {}
@@ -127,22 +154,22 @@ fn exec_inner(
 
 	// 1. Parse everything.
 	let pset: elements::pset::PartiallySignedTransaction =
-		pset_b64.parse().result_context("decoding PSET")?;
-	let input_idx: u32 = input_idx.parse().result_context("parsing input-idx")?;
+		pset_b64.parse().map_err(PsetRunError::PsetDecode)?;
+	let input_idx: u32 = input_idx.parse().map_err(PsetRunError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
 	let program = Program::<jet::Elements>::from_str(program, Some(witness))
-		.result_context("parsing program")?;
+		.map_err(PsetRunError::ProgramParse)?;
 
 	// 2. Extract transaction environment.
 	let (tx_env, _control_block, _tap_leaf) =
 		super::execution_environment(&pset, input_idx_usize, program.cmr(), genesis_hash)?;
 
 	// 3. Prune program.
-	let redeem_node = program.redeem_node().expect("populated");
+	let redeem_node = program.redeem_node().ok_or(PsetRunError::NoRedeemNode)?;
 
 	let mut mac =
-		BitMachine::for_program(redeem_node).result_context("constructing bit machine")?;
+		BitMachine::for_program(redeem_node).map_err(PsetRunError::BitMachineConstruction)?;
 	let mut tracker = JetTracker(vec![]);
 	// Eat success/failure. FIXME should probably report this to the user.
 	let success = mac.exec_with_tracker(redeem_node, &tx_env, &mut tracker).is_ok();

@@ -3,13 +3,22 @@
 
 use crate::cmd;
 
-use super::{Error, ErrorExt as _};
+use super::Error;
 
 use hal_simplicity::hal_simplicity::{elements_address, Program};
 use hal_simplicity::simplicity::{jet, Amr, Cmr, Ihr};
 use simplicity::hex::parse::FromHex as _;
 
 use serde::Serialize;
+
+#[derive(Debug, thiserror::Error)]
+pub enum SimplicityInfoError {
+	#[error("invalid program: {0}")]
+	ProgramParse(simplicity::ParseError),
+
+	#[error("invalid state: {0}")]
+	StateParse(elements::hashes::hex::HexToArrayError),
+}
 
 #[derive(Serialize)]
 struct RedeemInfo {
@@ -60,7 +69,12 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(program, witness, state) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
@@ -68,12 +82,12 @@ fn exec_inner(
 	program: &str,
 	witness: Option<&str>,
 	state: Option<&str>,
-) -> Result<ProgramInfo, Error> {
+) -> Result<ProgramInfo, SimplicityInfoError> {
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let program =
-		Program::<jet::Elements>::from_str(program, witness).result_context("parsing program")?;
+	let program = Program::<jet::Elements>::from_str(program, witness)
+		.map_err(SimplicityInfoError::ProgramParse)?;
 
 	let redeem_info = program.redeem_node().map(|node| {
 		let disp = node.display();
@@ -86,10 +100,8 @@ fn exec_inner(
 		x // binding needed for truly stupid borrowck reasons
 	});
 
-	let state = state
-		.map(<[u8; 32]>::from_hex)
-		.transpose()
-		.result_context("parsing 32-byte state commitment as hex")?;
+	let state =
+		state.map(<[u8; 32]>::from_hex).transpose().map_err(SimplicityInfoError::StateParse)?;
 
 	Ok(ProgramInfo {
 		jets: "core",

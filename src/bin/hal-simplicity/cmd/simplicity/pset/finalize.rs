@@ -2,12 +2,34 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::cmd;
+use crate::cmd::simplicity::pset::PsetError;
 
 use hal_simplicity::hal_simplicity::Program;
 use hal_simplicity::simplicity::jet;
 
-use super::super::{Error, ErrorExt as _};
+use super::super::Error;
 use super::UpdatedPset;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PsetFinalizeError {
+	#[error(transparent)]
+	SharedError(#[from] PsetError),
+
+	#[error("invalid PSET: {0}")]
+	PsetDecode(elements::pset::ParseError),
+
+	#[error("invalid input index: {0}")]
+	InputIndexParse(std::num::ParseIntError),
+
+	#[error("invalid program: {0}")]
+	ProgramParse(simplicity::ParseError),
+
+	#[error("program does not have a redeem node")]
+	NoRedeemNode,
+
+	#[error("failed to prune program: {0}")]
+	ProgramPrune(simplicity::bit_machine::ExecutionError),
+}
 
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand("finalize", "Attach a Simplicity program and witness to a PSET input")
@@ -39,7 +61,12 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 
 	match exec_inner(pset_b64, input_idx, program, witness, genesis_hash) {
 		Ok(info) => cmd::print_output(matches, &info),
-		Err(e) => cmd::print_output(matches, &e),
+		Err(e) => cmd::print_output(
+			matches,
+			&Error {
+				error: format!("{}", e),
+			},
+		),
 	}
 }
 
@@ -50,15 +77,15 @@ fn exec_inner(
 	program: &str,
 	witness: &str,
 	genesis_hash: Option<&str>,
-) -> Result<UpdatedPset, Error> {
+) -> Result<UpdatedPset, PsetFinalizeError> {
 	// 1. Parse everything.
 	let mut pset: elements::pset::PartiallySignedTransaction =
-		pset_b64.parse().result_context("decoding PSET")?;
-	let input_idx: u32 = input_idx.parse().result_context("parsing input-idx")?;
+		pset_b64.parse().map_err(PsetFinalizeError::PsetDecode)?;
+	let input_idx: u32 = input_idx.parse().map_err(PsetFinalizeError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
 	let program = Program::<jet::Elements>::from_str(program, Some(witness))
-		.result_context("parsing program")?;
+		.map_err(PsetFinalizeError::ProgramParse)?;
 
 	// 2. Extract transaction environment.
 	let (tx_env, control_block, tap_leaf) =
@@ -66,8 +93,8 @@ fn exec_inner(
 	let cb_serialized = control_block.serialize();
 
 	// 3. Prune program.
-	let redeem_node = program.redeem_node().expect("populated");
-	let pruned = redeem_node.prune(&tx_env).result_context("pruning program")?;
+	let redeem_node = program.redeem_node().ok_or(PsetFinalizeError::NoRedeemNode)?;
+	let pruned = redeem_node.prune(&tx_env).map_err(PsetFinalizeError::ProgramPrune)?;
 
 	let (prog, witness) = pruned.to_vec_with_witness();
 	// If `execution_environment` above succeeded we are guaranteed that this index is in bounds.
