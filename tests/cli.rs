@@ -172,7 +172,7 @@ OPTIONS:
 	// length-prefixed, which is a little surprising and should be documented
 	assert_cmd(
 		&["address", "create"],
-		"Execution failed: Can't create addresses without a pubkey\n",
+		"Execution failed: can't create addresses without a pubkey\n",
 		"",
 	);
 	assert_cmd(&["address", "create", "-h"], expected_help, "");
@@ -194,7 +194,7 @@ For more information try --help
 	// FIXME stdout instead of stderr
 	assert_cmd(
 		&["address", "create", "--pubkey", ""],
-		"Execution failed: invalid pubkey: InvalidHexLength(0)\n",
+		"Execution failed: invalid pubkey: pubkey string should be 66 or 130 digits long, got: 0\n",
 		"",
 	);
 	// x-only keys not supported
@@ -205,7 +205,7 @@ For more information try --help
 			"--pubkey",
 			"abababababababababababababababababababababababababababababababab",
 		],
-		"Execution failed: invalid pubkey: InvalidHexLength(64)\n",
+		"Execution failed: invalid pubkey: pubkey string should be 66 or 130 digits long, got: 64\n",
 		"",
 	);
 	assert_cmd(
@@ -215,7 +215,7 @@ For more information try --help
 			"--pubkey",
 			"020000000000000000000000000000000000000000000000000000000000000000",
 		],
-		"Execution failed: invalid pubkey: Encoding(Secp256k1(InvalidPublicKey))\n",
+		"Execution failed: invalid pubkey: string error\n",
 		"",
 	);
 	// uncompressed keys ok (though FIXME we should not produce p2wpkh or p2shwpkh addresses which are unspendable!!)
@@ -231,7 +231,7 @@ For more information try --help
 	// hybrid keys are not
 	assert_cmd(
 		&["address", "create", "--pubkey", "0700000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c633f3979bf72ae8202983dc989aec7f2ff2ed91bdd69ce02fc0700ca100e59ddf3"],
-		"Execution failed: invalid pubkey: Encoding(InvalidKeyPrefix(7))\n",
+		"Execution failed: invalid pubkey: string error\n",
 		"",
 	);
 	// compressed keys are ok, and the output is NOT the same as for uncompressed keys
@@ -258,18 +258,18 @@ For more information try --help
 			"--blinder",
 			"0200000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63",
 		],
-		"Execution failed: Can't create addresses without a pubkey\n",
+		"Execution failed: can't create addresses without a pubkey\n",
 		"",
 	);
 	// Invalid blinders all get the same generic message, and we don't even check for a pubkey
 	assert_cmd(
 		&["address", "create", "--blinder", ""],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: invalid blinder: malformed public key\n",
 		"",
 	);
 	assert_cmd(
 		&["address", "create", "--blinder", "02abcd"],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: invalid blinder: malformed public key\n",
 		"",
 	);
 	assert_cmd(
@@ -279,7 +279,7 @@ For more information try --help
 			"--blinder",
 			"abababababababababababababababababababababababababababababababab",
 		],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: invalid blinder: malformed public key\n",
 		"",
 	);
 	assert_cmd(
@@ -289,7 +289,7 @@ For more information try --help
 			"--blinder",
 			"020000000000000000000000000000000000000000000000000000000000000000",
 		],
-		"Execution failed: invalid blinder: InvalidPublicKey\n",
+		"Execution failed: invalid blinder: malformed public key\n",
 		"",
 	);
 	// good pubkey, blinder
@@ -623,19 +623,19 @@ For more information try --help
 	// FIXME stdout instead of stderr
 	assert_cmd(
 		&["address", "inspect", ""],
-		"Execution failed: invalid address format: Base58(TooShort(TooShortError { length: 0 }))\n",
+		"Execution failed: invalid address format: base58 error: too short\n",
 		"",
 	);
 	// FIXME this error is absolutely terrible
 	assert_cmd(
 		&["address", "inspect", "bc1q7z3dshje7e4tftag5c3w7e85pr00r6cq34khh8"],
-		"Execution failed: invalid address format: Base58(Decode(InvalidCharacterError { invalid: 48 }))\n",
+		"Execution failed: invalid address format: base58 error: decode\n",
 		"",
 	);
 	// FIXME this one is possibly even worse
 	assert_cmd(
 		&["address", "inspect", "1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N"],
-		"Execution failed: invalid address format: InvalidAddress(\"1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N\")\n",
+		"Execution failed: invalid address format: was unable to parse the address: 1Au8w4fejHaJBbrZCMrfg6v2hwJNr3go1N\n",
 		"",
 	);
 	// liquid addresses ok
@@ -796,8 +796,16 @@ ARGS:
 	assert_cmd(&["block", "create", "--help", "xyz"], expected_help, "");
 
 	// TODO this was as far as I got trying to find a valid input
-	assert_cmd(&["block", "create", ""], "Execution failed: invaid json JSON input: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(
+		&["block", "create", ""],
+		"Execution failed: invalid json JSON input: EOF while parsing a value at line 1 column 0\n",
+		"",
+	);
+	assert_cmd(
+		&["block", "create", "{}"],
+		"Execution failed: invalid json JSON input: missing field `header` at line 1 column 2\n",
+		"",
+	);
 	assert_cmd(
 		&[
 			"block",
@@ -813,10 +821,14 @@ ARGS:
 			}
 		 }"#,
 		],
-		"Execution failed: missing challenge\n",
+		"Execution failed: challenge missing in proof params\n",
 		"",
 	);
-	assert_cmd(&["block", "create", "{}"], "Execution failed: invaid json JSON input: Error(\"missing field `header`\", line: 1, column: 2)\n", "");
+	assert_cmd(
+		&["block", "create", "{}"],
+		"Execution failed: invalid json JSON input: missing field `header` at line 1 column 2\n",
+		"",
+	);
 	// FIXME this error is awful; the actual field it wants is called `dynafed_current`
 	assert_cmd(
 		&[
@@ -833,7 +845,7 @@ ARGS:
 			}
 		 }"#,
 		],
-		"Execution failed: missing current params\n",
+		"Execution failed: current missing in dynafed params\n",
 		"",
 	);
 
@@ -869,7 +881,7 @@ ARGS:
 	// Also, as always, these errors show up on stdout instead of stderr..
 	assert_cmd(
 		&["block", "create", &header_json.replace("%TRANSACTIONS%", "")],
-		"Execution failed: No transactions provided.\n",
+		"Execution failed: no transactions provided.\n",
 		"",
 	);
 	assert_cmd(
@@ -897,7 +909,7 @@ ARGS:
 			&header_json
 				.replace("%TRANSACTIONS%", ", \"transactions\": [], \"raw_transactions\": []"),
 		],
-		"Execution failed: Can't provide transactions both in JSON and raw.\n",
+		"Execution failed: can't provide transactions both in JSON and raw.\n",
 		"",
 	);
 
@@ -943,16 +955,22 @@ ARGS:
 	assert_cmd(&["block", "decode", "--help", "xyz"], expected_help, "");
 
 	// FIXME this error message is awful, and it's on stdout
-	assert_cmd(&["block", "decode", ""], "Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(
+		&["block", "decode", ""],
+		"Execution failed: invalid block format: I/O error: failed to fill whole buffer\n",
+		"",
+	);
 	// This is a hex-encoded block header, not a full block
 	assert_cmd(&["block", "decode", BLOCK_HEADER_1585319], HEADER_DECODE_1585319, "");
 	// This is the same hex-encoded block header, with --txids. FIXME this is awful.
-	assert_cmd(&["block", "decode", "--txids", BLOCK_HEADER_1585319],
-		"Execution failed: invalid block format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n",
-"");
+	assert_cmd(
+		&["block", "decode", "--txids", BLOCK_HEADER_1585319],
+		"Execution failed: invalid block format: I/O error: failed to fill whole buffer\n",
+		"",
+	);
 	// Here is the header plus some arbitrary junk
 	assert_cmd(&["block", "decode", &(BLOCK_HEADER_1585319.to_owned() + "0000")],
-		"Execution failed: invalid block format: ParseFailed(\"data not consumed entirely when explicitly deserializing\")\n",
+		"Execution failed: invalid block format: parse failed: data not consumed entirely when explicitly deserializing\n",
 "");
 	// Here is the whole block.
 	assert_cmd(&["block", "decode", FULL_BLOCK_1585319], HEADER_DECODE_1585319, "");
@@ -1161,13 +1179,17 @@ ARGS:
 	assert_cmd(&["tx", "create", "--help"], expected_help, "");
 	assert_cmd(&["tx", "create", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["tx", "create", ""], "Execution failed: invalid JSON provided: Error(\"EOF while parsing a value\", line: 1, column: 0)\n", "");
-	assert_cmd(&["tx", "create", "{ }"], "Execution failed: Field \"version\" is required.\n", "");
+	assert_cmd(
+		&["tx", "create", ""],
+		"Execution failed: invalid JSON provided: EOF while parsing a value at line 1 column 0\n",
+		"",
+	);
+	assert_cmd(&["tx", "create", "{ }"], "Execution failed: field \"version\" is required.\n", "");
 	// FIXME I have no idea what is wrong here. But putting a test in to track fixing
 	//  whatever is causing this nonsense error.
 	assert_cmd(
 		&["tx", "create", "{ \"version\": 10, \"locktime\": 10 }"],
-		"Execution failed: invalid JSON provided: Error(\"expected value\", line: 1, column: 30)\n",
+		"Execution failed: invalid JSON provided: expected value at line 1 column 30\n",
 		"",
 	);
 	// FIXME: lol, replace this locktime format with something sane
@@ -1220,9 +1242,13 @@ ARGS:
 	assert_cmd(&["tx", "decode", "--help"], expected_help, "");
 	assert_cmd(&["tx", "decode", "--help", "xyz"], expected_help, "");
 
-	assert_cmd(&["tx", "decode", ""], "Execution failed: invalid tx format: Io(Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" })\n", "");
+	assert_cmd(
+		&["tx", "decode", ""],
+		"Execution failed: invalid tx format: I/O error: failed to fill whole buffer\n",
+		"",
+	);
 	// A bitcoin transaction
-	assert_cmd(&["tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: invalid tx format: NonMinimalVarInt\n", "");
+	assert_cmd(&["tx", "decode", "02000000000101cd5d8addc8ed0d91d9338a1e524a87185b8bb3c1760e0a19c4ad576b217fd7ca0100000000fdffffff02f50100000000000016001468647ece9c25ab162c72dbedfe7de63db1913e39e50d00000000000016001413aac2fc1cef3dacc656bfe8fe342a03a5feac6302473044022059e6f5ccc1d89bf31a3847a464cce1fcf0e56e43633787d03ebb2ebc1899e28c02207f3f05a16a87f07fe82bfa35c509e7d969243c6215080a6775877bef113c9e7b012103b303769299ca63c9076fc8f91d6e27152a81fc884f9fe95f47fd2a262c987256b7c50d00"], "Execution failed: invalid tx format: non-minimal varint\n", "");
 	// A Liquid transaction
 	let tx_decode = r#"{
   "txid": "9523d75b48b3411a3f4ebd31b6005898deebbe748875aa6ee084b94aa8422ba6",

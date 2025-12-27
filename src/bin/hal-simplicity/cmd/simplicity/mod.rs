@@ -15,21 +15,31 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct Error {
-	context: &'static str,
 	error: String,
 }
 
-trait ErrorExt<T> {
-	fn result_context(self, context: &'static str) -> Result<T, Error>;
-}
+#[derive(Debug, thiserror::Error)]
+pub enum ParseElementsUtxoError {
+	#[error("invalid format: expected <scriptPubKey>:<asset>:<value>")]
+	InvalidFormat,
 
-impl<T, E: core::fmt::Display> ErrorExt<T> for Result<T, E> {
-	fn result_context(self, context: &'static str) -> Result<T, Error> {
-		self.map_err(|e| Error {
-			context,
-			error: e.to_string(),
-		})
-	}
+	#[error("invalid scriptPubKey hex: {0}")]
+	ScriptPubKeyParsing(elements::hex::Error),
+
+	#[error("invalid asset hex: {0}")]
+	AssetHexParsing(elements::hashes::hex::HexToArrayError),
+
+	#[error("invalid asset commitment hex: {0}")]
+	AssetCommitmentHexParsing(elements::hex::Error),
+
+	#[error("invalid asset commitment: {0}")]
+	AssetCommitmentDecoding(elements::encode::Error),
+
+	#[error("invalid value commitment hex: {0}")]
+	ValueCommitmentHexParsing(elements::hex::Error),
+
+	#[error("invalid value commitment: {0}")]
+	ValueCommitmentDecoding(elements::encode::Error),
 }
 
 pub fn subcommand<'a>() -> clap::App<'a, 'a> {
@@ -48,29 +58,27 @@ pub fn execute<'a>(matches: &clap::ArgMatches<'a>) {
 	};
 }
 
-fn parse_elements_utxo(s: &str) -> Result<ElementsUtxo, Error> {
+fn parse_elements_utxo(s: &str) -> Result<ElementsUtxo, ParseElementsUtxoError> {
 	let parts: Vec<&str> = s.split(':').collect();
 	if parts.len() != 3 {
-		return Err(Error {
-			context: "parsing input UTXO",
-			error: "expected format <scriptPubKey>:<asset>:<value>".to_string(),
-		});
+		return Err(ParseElementsUtxoError::InvalidFormat);
 	}
 	// Parse scriptPubKey
 	let script_pubkey: elements::Script =
-		parts[0].parse().result_context("parsing scriptPubKey hex")?;
+		parts[0].parse().map_err(ParseElementsUtxoError::ScriptPubKeyParsing)?;
 
 	// Parse asset - try as explicit AssetId first, then as confidential commitment
 	let asset = if parts[1].len() == 64 {
 		// 32 bytes = explicit AssetId
-		let asset_id: elements::AssetId = parts[1].parse().result_context("parsing asset hex")?;
+		let asset_id: elements::AssetId =
+			parts[1].parse().map_err(ParseElementsUtxoError::AssetHexParsing)?;
 		confidential::Asset::Explicit(asset_id)
 	} else {
 		// Parse anything except 32 bytes as a confidential commitment (which must be 33 bytes)
 		let commitment_bytes =
-			Vec::from_hex(parts[1]).result_context("parsing asset commitment hex")?;
+			Vec::from_hex(parts[1]).map_err(ParseElementsUtxoError::AssetCommitmentHexParsing)?;
 		elements::confidential::Asset::from_commitment(&commitment_bytes)
-			.result_context("decoding asset commitment")?
+			.map_err(ParseElementsUtxoError::AssetCommitmentDecoding)?
 	};
 
 	// Parse value - try as BTC decimal first, then as confidential commitment
@@ -80,9 +88,9 @@ fn parse_elements_utxo(s: &str) -> Result<ElementsUtxo, Error> {
 	} else {
 		// 33 bytes = confidential commitment
 		let commitment_bytes =
-			Vec::from_hex(parts[2]).result_context("parsing value commitment hex")?;
+			Vec::from_hex(parts[2]).map_err(ParseElementsUtxoError::ValueCommitmentHexParsing)?;
 		elements::confidential::Value::from_commitment(&commitment_bytes)
-			.result_context("decoding value commitment")?
+			.map_err(ParseElementsUtxoError::ValueCommitmentDecoding)?
 	};
 
 	Ok(ElementsUtxo {
