@@ -1,5 +1,4 @@
 use clap;
-use elements::bitcoin::secp256k1::{self, rand};
 
 use crate::cmd;
 
@@ -20,22 +19,6 @@ fn cmd_generate<'a>() -> clap::App<'a, 'a> {
 }
 
 fn exec_generate<'a>(matches: &clap::ArgMatches<'a>) {
-	#[derive(serde::Serialize)]
-	struct Res {
-		secret: secp256k1::SecretKey,
-		x_only: secp256k1::XOnlyPublicKey,
-		parity: secp256k1::Parity,
-	}
-
-	let (secret, public) = secp256k1::generate_keypair(&mut rand::thread_rng());
-	let (x_only, parity) = public.x_only_public_key();
-
-	cmd::print_output(
-		matches,
-		&Res {
-			secret,
-			x_only,
-			parity,
-		},
-	);
+	let keypair = hal_simplicity::actions::keypair::keypair_generate();
+	cmd::print_output(matches, &keypair);
 }
