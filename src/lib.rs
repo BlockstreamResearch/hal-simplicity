@@ -1,5 +1,7 @@
 pub extern crate simplicity;
 
+pub mod actions;
+
 pub mod address;
 pub mod block;
 pub mod hal_simplicity;
