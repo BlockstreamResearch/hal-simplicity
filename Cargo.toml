@@ -9,6 +9,7 @@ repository = "https://github.com/BlockstreamResearch/hal-simplicity/"
 description = "hal-simplicity: a Simplicity extension of hal"
 keywords = [ "crypto", "bitcoin", "elements", "liquid", "simplicity" ]
 readme = "README.md"
+default-run = "hal-simplicity"
 
 [lib]
 name = "hal_simplicity"
@@ -18,6 +19,19 @@ path = "src/lib.rs"
 name = "hal-simplicity"
 path = "src/bin/hal-simplicity/main.rs"
 
+[[bin]]
+name = "hal-simplicity-daemon"
+path = "src/bin/hal-simplicity-daemon/main.rs"
+
+[features]
+default = []
+daemon = [
+	"dep:chrono",
+	"dep:hyper",
+	"dep:hyper-util",
+	"dep:http-body-util",
+	"dep:tokio",
+]
 
 [dependencies]
 hal = "0.10.0"
@@ -33,6 +47,13 @@ hex = "0.3.2"
 elements = { version = "0.25.2", features = [ "serde", "base64" ] }
 simplicity = { package = "simplicity-lang", version = "0.5.0", features = [ "base64", "serde" ] }
 thiserror = "2.0.17"
+
+# Daemon-only dependencies
+chrono = { version = "0.4", optional = true }
+hyper = { version = "1.8.1", features = ["server", "http1"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio"], optional = true }
+http-body-util = { version = "0.1", optional = true }
+tokio = { version = "1.48.0", features = ["full"], optional = true }
 
 [lints.clippy]
 # Exclude lints we don't think are valuable.
