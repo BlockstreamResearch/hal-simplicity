@@ -29,6 +29,9 @@ pub enum PsetCreateError {
 
 	#[error("confidential addresses are not yet supported")]
 	ConfidentialAddressNotSupported,
+
+	#[error("invalid OP_RETURN hex data: {0}")]
+	OpReturnHexParse(String),
 }
 
 #[derive(Deserialize)]
@@ -127,6 +130,16 @@ pub fn pset_create(inputs_json: &str, outputs_json: &str) -> Result<UpdatedPset,
 
 		let script_pubkey = match output_spec.address.as_str() {
 			"fee" => elements::Script::new(),
+			x if x.starts_with("data:") => {
+				// OP_RETURN output: "data:HEXDATA"
+				let hex_data = &x[5..];
+				let data = hex::decode(hex_data)
+					.map_err(|e| PsetCreateError::OpReturnHexParse(e.to_string()))?;
+				elements::script::Builder::new()
+					.push_opcode(elements::opcodes::all::OP_RETURN)
+					.push_slice(&data)
+					.into_script()
+			}
 			x => {
 				let addr = x.parse::<Address>().map_err(PsetCreateError::AddressParse)?;
 				if addr.is_blinded() {
