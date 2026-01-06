@@ -57,7 +57,9 @@ pub trait GetInfo<T: ::serde::Serialize> {
 /// An even-length string with exclusively lowercase hex characters will be parsed as hex;
 /// failing that, it will be parsed as base64 and return an error accordingly.
 pub fn hex_or_base64(s: &str) -> Result<Vec<u8>, simplicity::base64::DecodeError> {
-	if s.len() % 2 == 0 && s.bytes().all(|b| b.is_ascii_hexdigit() && b.is_ascii_lowercase()) {
+	// Use explicit matching for lowercase hex (0-9, a-f) since is_ascii_lowercase()
+	// returns false for digits, causing valid hex strings to be parsed as base64
+	if s.len() % 2 == 0 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
 		use simplicity::hex::FromHex as _;
 		Ok(Vec::from_hex(s).expect("charset checked above"))
 	} else {
