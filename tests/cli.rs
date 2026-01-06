@@ -82,7 +82,7 @@ fn assert_cmd(args: &[&str], expected_stdout: impl AsRef<str>, expected_stderr: 
 #[test]
 fn cli_help() {
 	let expected_help = "\
-hal-simplicity 0.1.0
+hal-simplicity 0.2.0
 hal-simplicity -- a Simplicity-enabled fork of hal
 
 USAGE:
@@ -126,7 +126,7 @@ For more information try --help
 #[test]
 fn cli_address() {
 	let expected_help = "\
-hal-simplicity-address 0.1.0
+hal-simplicity-address 0.2.0
 work with addresses
 
 USAGE:
@@ -149,7 +149,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_address_create() {
 	let expected_help = "\
-hal-simplicity-address-create 0.1.0
+hal-simplicity-address-create 0.2.0
 create addresses
 
 USAGE:
@@ -587,7 +587,7 @@ For more information try --help
 #[test]
 fn cli_address_inspect() {
 	let expected_help = "\
-hal-simplicity-address-inspect 0.1.0
+hal-simplicity-address-inspect 0.2.0
 inspect addresses
 
 USAGE:
@@ -752,7 +752,7 @@ For more information try --help
 #[test]
 fn cli_block() {
 	let expected_help = "\
-hal-simplicity-block 0.1.0
+hal-simplicity-block 0.2.0
 manipulate blocks
 
 USAGE:
@@ -775,7 +775,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_block_create() {
 	let expected_help = "\
-hal-simplicity-block-create 0.1.0
+hal-simplicity-block-create 0.2.0
 create a raw block from JSON
 
 USAGE:
@@ -931,7 +931,7 @@ ARGS:
 #[test]
 fn cli_block_decode() {
 	let expected_help = "\
-hal-simplicity-block-decode 0.1.0
+hal-simplicity-block-decode 0.2.0
 decode a raw block to JSON
 
 USAGE:
@@ -1008,7 +1008,7 @@ ARGS:
 #[test]
 fn cli_keypair() {
 	let expected_help = "\
-hal-simplicity-keypair 0.1.0
+hal-simplicity-keypair 0.2.0
 manipulate private and public keys
 
 USAGE:
@@ -1031,7 +1031,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_keypair_generate() {
 	let expected_help = "\
-hal-simplicity-keypair-generate 0.1.0
+hal-simplicity-keypair-generate 0.2.0
 generate a random private/public keypair
 
 USAGE:
@@ -1067,7 +1067,7 @@ FLAGS:
 #[test]
 fn cli_simplicity() {
 	let expected_help = "\
-hal-simplicity-simplicity 0.1.0
+hal-simplicity-simplicity 0.2.0
 manipulate Simplicity programs
 
 USAGE:
@@ -1091,7 +1091,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_simplicity_info() {
 	let expected_help = "\
-hal-simplicity-simplicity-info 0.1.0
+hal-simplicity-simplicity-info 0.2.0
 Parse a base64-encoded Simplicity program and decode it
 
 USAGE:
@@ -1137,7 +1137,7 @@ For more information try --help
 #[test]
 fn cli_tx() {
 	let expected_help = "\
-hal-simplicity-tx 0.1.0
+hal-simplicity-tx 0.2.0
 manipulate transactions
 
 USAGE:
@@ -1160,7 +1160,7 @@ SUBCOMMANDS:
 #[test]
 fn cli_tx_create() {
 	let expected_help = "\
-hal-simplicity-tx-create 0.1.0
+hal-simplicity-tx-create 0.2.0
 create a raw transaction from JSON
 
 USAGE:
@@ -1221,7 +1221,7 @@ ARGS:
 #[test]
 fn cli_tx_decode() {
 	let expected_help = "\
-hal-simplicity-tx-decode 0.1.0
+hal-simplicity-tx-decode 0.2.0
 decode a raw transaction to JSON
 
 USAGE:
