@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use simplicity::{
-	dag::{MaxSharing, NoSharing},
-	jet,
-};
+use simplicity::jet;
 
 use crate::hal_simplicity::Program;
 

@@ -1,6 +1,3 @@
-// Copyright 2025 Andrew Poelstra
-// SPDX-License-Identifier: CC0-1.0
-
 use clap::value_t;
 use hal_simplicity::actions::simplicity::{GraphFormat, SharingLevel};
 
@@ -30,7 +27,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.takes_value(true)
 				.required(false)
 				.default_value("graphviz")
-				.possible_values(&["graphviz", "dot", "mermaid"]),
+				.possible_values(&["graphviz", "dot", "mermaid", "mermaidjs"]),
 		],
 	)
 }
