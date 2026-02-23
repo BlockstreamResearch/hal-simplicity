@@ -22,6 +22,8 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 			)
 			.short("g")
 			.required(false),
+			cmd::arg("padding-bytes", "The number of padding bytes to add to the annex to allow the cost of the program to fall in budget. This number should include the prefix byte.").alias("padding")
+			.short("a").required(false)
 		])
 }
 
@@ -31,12 +33,15 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let program = matches.value_of("program").expect("program is mandatory");
 	let witness = matches.value_of("witness").expect("witness is mandatory");
 	let genesis_hash = matches.value_of("genesis-hash");
+	let padding_bytes =
+		matches.value_of("padding-bytes").map(|b| b.parse().ok()).flatten().unwrap_or_default();
 
 	match hal_simplicity::actions::simplicity::pset::pset_finalize(
 		pset_b64,
 		input_idx,
 		program,
 		witness,
+		padding_bytes,
 		genesis_hash,
 	) {
 		Ok(info) => cmd::print_output(matches, &info),
