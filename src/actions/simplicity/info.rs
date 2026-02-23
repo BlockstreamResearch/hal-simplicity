@@ -2,6 +2,7 @@ use crate::hal_simplicity::{elements_address, Program};
 use crate::simplicity::hex::parse::FromHex as _;
 use crate::simplicity::{jet, Amr, Cmr, Ihr};
 use serde::Serialize;
+use simplicity::NodeBounds;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SimplicityInfoError {
@@ -18,6 +19,7 @@ pub struct RedeemInfo {
 	pub witness_hex: String,
 	pub amr: Amr,
 	pub ihr: Ihr,
+	pub bounds: NodeBounds,
 }
 
 #[derive(Serialize)]
@@ -56,6 +58,7 @@ pub fn simplicity_info(
 			witness_hex,
 			amr: node.amr(),
 			ihr: node.ihr(),
+			bounds: node.bounds(),
 		}
 	});
 
