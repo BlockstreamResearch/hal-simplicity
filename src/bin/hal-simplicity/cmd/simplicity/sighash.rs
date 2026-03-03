@@ -38,6 +38,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.multiple(true)
 				.number_of_values(1)
 				.required(false),
+			cmd::opt("annex", "addition annex, as hex. Mainly used to add padding for CPU intensive programs").required(false)
 		])
 }
 
@@ -51,6 +52,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	let public_key = matches.value_of("public-key");
 	let signature = matches.value_of("signature");
 	let input_utxos: Option<Vec<_>> = matches.values_of("input-utxo").map(|vals| vals.collect());
+	let annex = matches.value_of("annex");
 
 	match hal_simplicity::actions::simplicity::simplicity_sighash(
 		tx_hex,
@@ -62,6 +64,7 @@ pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 		public_key,
 		signature,
 		input_utxos.as_deref(),
+		annex,
 	) {
 		Ok(info) => cmd::print_output(matches, &info),
 		Err(e) => cmd::print_output(

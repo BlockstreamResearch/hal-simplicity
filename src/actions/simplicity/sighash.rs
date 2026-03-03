@@ -1,3 +1,4 @@
+use crate::hex_or_base64;
 use crate::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey,
 };
@@ -12,6 +13,7 @@ use elements::bitcoin::secp256k1;
 use elements::hashes::Hash as _;
 use elements::pset::PartiallySignedTransaction;
 use serde::Serialize;
+use simplicity::base64;
 
 use crate::simplicity::elements::taproot::ControlBlock;
 use crate::simplicity::jet::elements::ElementsEnv;
@@ -92,6 +94,9 @@ pub enum SimplicitySighashError {
 
 	#[error("invalid input UTXO: {0}")]
 	InputUtxoParsing(ParseElementsUtxoError),
+
+	#[error("annex was not valid hex or base64:{0}")]
+	AnnexParsing(base64::DecodeError),
 }
 
 #[derive(Serialize)]
@@ -113,6 +118,7 @@ pub fn simplicity_sighash(
 	public_key: Option<&str>,
 	signature: Option<&str>,
 	input_utxos: Option<&[&str]>,
+	annex: Option<&str>,
 ) -> Result<SighashInfo, SimplicitySighashError> {
 	let secp = Secp256k1::new();
 
@@ -214,15 +220,11 @@ pub fn simplicity_sighash(
 		]),
 	};
 
-	let tx_env = ElementsEnv::new(
-		&tx,
-		input_utxos,
-		input_idx,
-		cmr,
-		control_block,
-		None, // FIXME populate this; needs https://github.com/BlockstreamResearch/rust-simplicity/issues/315 first
-		genesis_hash,
-	);
+	let annex = annex
+		.map(|v| hex_or_base64(v).map_err(SimplicitySighashError::AnnexParsing))
+		.transpose()?;
+	let tx_env =
+		ElementsEnv::new(&tx, input_utxos, input_idx, cmr, control_block, annex, genesis_hash);
 
 	let (pk, sig) = match (public_key, signature) {
 		(Some(pk), None) => (
