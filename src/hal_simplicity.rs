@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 use elements::taproot::{TaprootBuilder, TaprootSpendInfo};
 use simplicity::bitcoin::secp256k1;
-use simplicity::jet::Jet;
+use simplicity::jet::Elements;
 use simplicity::{BitIter, CommitNode, DecodeError, ParseError, RedeemNode};
 
 /// A representation of a hex or base64-encoded Simplicity program, as seen by
 /// hal-simplicity.
-pub struct Program<J: Jet> {
+pub struct Program {
 	/// A commitment-time program. This should have no hidden branches (though the
 	/// rust-simplicity encoding allows this) and no witness data.
 	///
@@ -19,13 +19,13 @@ pub struct Program<J: Jet> {
 	/// because this lets the tool provide information like CMRs or addresses even
 	/// if there is no witness data available or if the program is improperly
 	/// pruned.
-	commit_prog: Arc<CommitNode<J>>,
+	commit_prog: Arc<CommitNode>,
 	/// A redemption-time program. This should be pruned (though an unpruned or
 	/// improperly-pruned program can still be parsed) and have witness data.
-	redeem_prog: Option<Arc<RedeemNode<J>>>,
+	redeem_prog: Option<Arc<RedeemNode>>,
 }
 
-impl<J: Jet> Program<J> {
+impl Program {
 	/// Constructs a program from a hex representation.
 	///
 	/// The canonical representation of Simplicity programs is base64, but hex is a
@@ -37,14 +37,14 @@ impl<J: Jet> Program<J> {
 	pub fn from_str(prog_b64: &str, wit_hex: Option<&str>) -> Result<Self, ParseError> {
 		let prog_bytes = crate::hex_or_base64(prog_b64).map_err(ParseError::Base64)?;
 		let iter = BitIter::new(prog_bytes.iter().copied());
-		let commit_prog = CommitNode::decode(iter).map_err(ParseError::Decode)?;
+		let commit_prog = CommitNode::decode::<_, Elements>(iter).map_err(ParseError::Decode)?;
 
 		let redeem_prog = wit_hex
 			.map(|wit_hex| {
 				let wit_bytes = crate::hex_or_base64(wit_hex).map_err(ParseError::Base64)?;
 				let prog_iter = BitIter::new(prog_bytes.into_iter());
 				let wit_iter = BitIter::new(wit_bytes.into_iter());
-				RedeemNode::decode(prog_iter, wit_iter).map_err(ParseError::Decode)
+				RedeemNode::decode::<_, _, Elements>(prog_iter, wit_iter).map_err(ParseError::Decode)
 			})
 			.transpose()?;
 
@@ -59,8 +59,10 @@ impl<J: Jet> Program<J> {
 		let prog_iter = BitIter::from(prog_bytes);
 		let wit_iter = wit_bytes.map(BitIter::from);
 		Ok(Self {
-			commit_prog: CommitNode::decode(prog_iter.clone())?,
-			redeem_prog: wit_iter.map(|iter| RedeemNode::decode(prog_iter, iter)).transpose()?,
+			commit_prog: CommitNode::decode::<_, Elements>(prog_iter.clone())?,
+			redeem_prog: wit_iter
+				.map(|iter| RedeemNode::decode::<_, _, Elements>(prog_iter, iter))
+				.transpose()?,
 		})
 	}
 
@@ -80,12 +82,12 @@ impl<J: Jet> Program<J> {
 	}
 
 	/// Accessor for the commitment-time program.
-	pub fn commit_prog(&self) -> &CommitNode<J> {
+	pub fn commit_prog(&self) -> &CommitNode {
 		&self.commit_prog
 	}
 
 	/// Accessor for the commitment-time program.
-	pub fn redeem_node(&self) -> Option<&Arc<RedeemNode<J>>> {
+	pub fn redeem_node(&self) -> Option<&Arc<RedeemNode>> {
 		self.redeem_prog.as_ref()
 	}
 }
@@ -165,7 +167,7 @@ mod tests {
 	fn fixed_hex_vector_1() {
 		// Taken from rust-simplicity `assert_lr`. This program works with no witness data.
 		let b64 = "zSQIS29W33fvVt9371bfd+9W33fvVt9371bfd+9W33fvVt93hgGA";
-		let prog = Program::<simplicity::jet::Core>::from_str(b64, Some("")).unwrap();
+		let prog = Program::from_str(b64, Some("")).unwrap();
 
 		assert_eq!(
 			prog.cmr(),
@@ -189,7 +191,7 @@ mod tests {
 		//
 		// Maybe in the UI we should detect this case and output some sort of warning?
 		let b64 = "zSQIS29W33fvVt9371bfd+9W33fvVt9371bfd+9W33fvVt93hgGA";
-		let prog = Program::<simplicity::jet::Core>::from_str(b64, None).unwrap();
+		let prog = Program::from_str(b64, None).unwrap();
 
 		assert_eq!(
 			prog.cmr(),

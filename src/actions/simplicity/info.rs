@@ -44,7 +44,7 @@ pub fn simplicity_info(
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let program = Program::<jet::Elements>::from_str(program, witness)
+	let program = Program::from_str(program, witness)
 		.map_err(SimplicityInfoError::ProgramParse)?;
 
 	let redeem_info = program.redeem_node().map(|node| {

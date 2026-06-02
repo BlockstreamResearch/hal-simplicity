@@ -41,7 +41,7 @@ pub fn pset_finalize(
 	let input_idx: u32 = input_idx.parse().map_err(PsetFinalizeError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
-	let program = Program::<jet::Elements>::from_str(program, Some(witness))
+	let program = Program::from_str(program, Some(witness))
 		.map_err(PsetFinalizeError::ProgramParse)?;
 
 	// 2. Extract transaction environment.

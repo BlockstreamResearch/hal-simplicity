@@ -51,10 +51,10 @@ pub struct RunResponse {
 
 struct JetTracker(Vec<JetCall>);
 
-impl<J: jet::Jet> ExecTracker<J> for JetTracker {
+impl ExecTracker for JetTracker {
 	fn visit_node(
 		&mut self,
-		node: &simplicity::RedeemNode<J>,
+		node: &simplicity::RedeemNode,
 		mut input: FrameIter,
 		output: NodeOutput,
 	) {
@@ -107,7 +107,7 @@ pub fn pset_run(
 	let input_idx: u32 = input_idx.parse().map_err(PsetRunError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
-	let program = Program::<jet::Elements>::from_str(program, Some(witness))
+	let program = Program::from_str(program, Some(witness))
 		.map_err(PsetRunError::ProgramParse)?;
 
 	// 2. Extract transaction environment.
