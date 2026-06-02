@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: CC0-1.0
 
 mod create;
+mod decode;
 mod extract;
 mod finalize;
 mod run;
 mod update_input;
 
 pub use create::*;
+pub use decode::*;
 pub use extract::*;
 pub use finalize::*;
 pub use run::*;
