@@ -21,6 +21,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				"genesis hash of the blockchain the transaction belongs to (hex)",
 			)
 			.short("g")
+			.takes_value(true)
 			.required(false),
 		])
 }
