@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::hal_simplicity::Program;
-use crate::simplicity::jet;
 
 use super::{execution_environment, PsetError, UpdatedPset};
 
@@ -41,8 +40,8 @@ pub fn pset_finalize(
 	let input_idx: u32 = input_idx.parse().map_err(PsetFinalizeError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
-	let program = Program::from_str(program, Some(witness))
-		.map_err(PsetFinalizeError::ProgramParse)?;
+	let program =
+		Program::from_str(program, Some(witness)).map_err(PsetFinalizeError::ProgramParse)?;
 
 	// 2. Extract transaction environment.
 	let (tx_env, control_block, tap_leaf) =

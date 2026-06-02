@@ -44,7 +44,8 @@ impl Program {
 				let wit_bytes = crate::hex_or_base64(wit_hex).map_err(ParseError::Base64)?;
 				let prog_iter = BitIter::new(prog_bytes.into_iter());
 				let wit_iter = BitIter::new(wit_bytes.into_iter());
-				RedeemNode::decode::<_, _, Elements>(prog_iter, wit_iter).map_err(ParseError::Decode)
+				RedeemNode::decode::<_, _, Elements>(prog_iter, wit_iter)
+					.map_err(ParseError::Decode)
 			})
 			.transpose()?;
 

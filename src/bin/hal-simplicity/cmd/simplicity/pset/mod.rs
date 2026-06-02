@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 mod create;
+mod decode;
 mod extract;
 mod finalize;
 mod run;
@@ -12,6 +13,7 @@ use crate::cmd;
 pub fn cmd<'a>() -> clap::App<'a, 'a> {
 	cmd::subcommand_group("pset", "manipulate PSETs for spending from Simplicity programs")
 		.subcommand(self::create::cmd())
+		.subcommand(self::decode::cmd())
 		.subcommand(self::extract::cmd())
 		.subcommand(self::finalize::cmd())
 		.subcommand(self::run::cmd())
@@ -21,6 +23,7 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 pub fn exec<'a>(matches: &clap::ArgMatches<'a>) {
 	match matches.subcommand() {
 		("create", Some(m)) => self::create::exec(m),
+		("decode", Some(m)) => self::decode::exec(m),
 		("extract", Some(m)) => self::extract::exec(m),
 		("finalize", Some(m)) => self::finalize::exec(m),
 		("run", Some(m)) => self::run::exec(m),

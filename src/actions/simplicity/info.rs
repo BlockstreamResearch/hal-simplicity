@@ -1,6 +1,6 @@
 use crate::hal_simplicity::{elements_address, Program};
 use crate::simplicity::hex::parse::FromHex as _;
-use crate::simplicity::{jet, Amr, Cmr, Ihr};
+use crate::simplicity::{Amr, Cmr, Ihr};
 use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -44,8 +44,7 @@ pub fn simplicity_info(
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let program = Program::from_str(program, witness)
-		.map_err(SimplicityInfoError::ProgramParse)?;
+	let program = Program::from_str(program, witness).map_err(SimplicityInfoError::ProgramParse)?;
 
 	let redeem_info = program.redeem_node().map(|node| {
 		let disp = node.display();

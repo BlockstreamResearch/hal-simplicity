@@ -5,8 +5,8 @@ use serde::Serialize;
 
 use crate::hal_simplicity::Program;
 use crate::simplicity::bit_machine::{BitMachine, ExecTracker, FrameIter, NodeOutput};
+use crate::simplicity::node;
 use crate::simplicity::Value;
-use crate::simplicity::{jet, node};
 
 use super::{execution_environment, PsetError};
 
@@ -107,8 +107,7 @@ pub fn pset_run(
 	let input_idx: u32 = input_idx.parse().map_err(PsetRunError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
-	let program = Program::from_str(program, Some(witness))
-		.map_err(PsetRunError::ProgramParse)?;
+	let program = Program::from_str(program, Some(witness)).map_err(PsetRunError::ProgramParse)?;
 
 	// 2. Extract transaction environment.
 	let (tx_env, _control_block, _tap_leaf) =
