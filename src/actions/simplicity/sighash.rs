@@ -41,7 +41,7 @@ pub enum SimplicitySighashError {
 	#[error("invalid control block decoding: {0}")]
 	ControlBlockDecoding(elements::taproot::TaprootError),
 
-	#[error("input index {index} out-of-range for PSET with {n_inputs} inputs")]
+	#[error("input index {index} out-of-range for transaction with {n_inputs} inputs")]
 	InputIndexOutOfRange {
 		index: u32,
 		n_inputs: usize,
@@ -134,6 +134,13 @@ pub fn simplicity_sighash(
 		}
 	};
 	let input_idx: u32 = input_idx.parse().map_err(SimplicitySighashError::InputIndexParsing)?;
+	// Checked here because the PSET input lookup below is skipped when a control block is given.
+	if input_idx as usize >= tx.input.len() {
+		return Err(SimplicitySighashError::InputIndexOutOfRange {
+			index: input_idx,
+			n_inputs: tx.input.len(),
+		});
+	}
 	let cmr: Cmr = cmr.parse().map_err(SimplicitySighashError::CmrParsing)?;
 
 	// If the user specifies a control block, use it. Otherwise query the PSET.
@@ -143,14 +150,7 @@ pub fn simplicity_sighash(
 		// value f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2
 		ControlBlock::from_slice(&cb_bytes).map_err(SimplicitySighashError::ControlBlockDecoding)?
 	} else if let Some(ref pset) = pset {
-		let n_inputs = pset.n_inputs();
-		let input = pset
-			.inputs()
-			.get(input_idx as usize) // cast u32->usize probably fine
-			.ok_or(SimplicitySighashError::InputIndexOutOfRange {
-				index: input_idx,
-				n_inputs,
-			})?;
+		let input = &pset.inputs()[input_idx as usize]; // bounds-checked above
 
 		let mut control_block = None;
 		for (cb, script_ver) in &input.tap_scripts {
@@ -267,4 +267,58 @@ pub fn simplicity_sighash(
 			_ => None,
 		},
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use elements::encode::serialize_hex;
+	use elements::{LockTime, Transaction, TxIn};
+
+	const CMR: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+	// Simplicity leaf version with the webide's hardcoded internal key.
+	const CONTROL_BLOCK: &str =
+		"bef5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2";
+	const UTXO: &str = "51:0000000000000000000000000000000000000000000000000000000000000000:0.0001";
+
+	#[test]
+	fn input_index_out_of_range_with_explicit_control_block() {
+		let tx = Transaction {
+			version: 2,
+			lock_time: LockTime::ZERO,
+			input: vec![TxIn::default(), TxIn::default()],
+			output: vec![],
+		};
+		let sighash = |tx: &str, idx: &str| {
+			let utxos = [UTXO, UTXO];
+			simplicity_sighash(
+				tx,
+				idx,
+				CMR,
+				Some(CONTROL_BLOCK),
+				None,
+				None,
+				None,
+				None,
+				Some(&utxos),
+			)
+		};
+
+		for tx in [serialize_hex(&tx), PartiallySignedTransaction::from_tx(tx).to_string()] {
+			assert!(sighash(&tx, "1").is_ok());
+			let err = sighash(&tx, "2").err();
+			assert!(
+				matches!(
+					err,
+					Some(SimplicitySighashError::InputIndexOutOfRange {
+						index: 2,
+						n_inputs: 2
+					})
+				),
+				"{:?}",
+				err
+			);
+		}
+	}
 }
