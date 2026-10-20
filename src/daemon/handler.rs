@@ -160,6 +160,7 @@ impl RpcHandler for DefaultRpcHandler {
 					req.public_key.as_deref(),
 					req.signature.as_deref(),
 					input_utxos.as_deref(),
+					req.annex.as_deref(),
 				)
 				.map_err(|e| RpcError::custom(ErrorCode::InternalError.code(), e.to_string()))?;
 				serialize_result(result)
@@ -190,6 +191,7 @@ impl RpcHandler for DefaultRpcHandler {
 					&req.input_index.to_string(),
 					&req.program,
 					&req.witness,
+					req.padding_bytes.unwrap_or(0),
 					req.genesis_hash.as_deref(),
 				)
 				.map_err(|e| RpcError::custom(ErrorCode::InternalError.code(), e.to_string()))?;

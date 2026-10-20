@@ -38,7 +38,9 @@ pub fn cmd<'a>() -> clap::App<'a, 'a> {
 				.multiple(true)
 				.number_of_values(1)
 				.required(false),
-			cmd::opt("annex", "addition annex, as hex. Mainly used to add padding for CPU intensive programs").required(false)
+			cmd::opt("annex", "taproot annex of the input, starting with the 0x50 prefix byte. Used to pad the witness of CPU-intensive programs; must match the annex added by `pset finalize --padding-bytes` (hex or base64)")
+				.takes_value(true)
+				.required(false),
 		])
 }
 

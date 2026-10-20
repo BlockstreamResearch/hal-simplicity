@@ -4,7 +4,6 @@
 use elements::bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
 
 use crate::hal_simplicity::Program;
-use crate::simplicity::jet;
 
 use super::{execution_environment, PsetError, UpdatedPset};
 
@@ -28,9 +27,10 @@ pub enum PsetFinalizeError {
 	#[error("failed to prune program: {0}")]
 	ProgramPrune(simplicity::bit_machine::ExecutionError),
 
-	#[error("cost of transaction exceeds budget. Suggested annex padding bytes to add (including prefix): {padding_required}")]
+	#[error("program cost exceeds the witness budget: needs an annex of at least {required} bytes (including the 0x50 prefix), got {provided}")]
 	CostExceedsBudget {
-		padding_required: usize,
+		required: usize,
+		provided: usize,
 	},
 }
 
@@ -49,8 +49,21 @@ pub fn pset_finalize(
 	let input_idx: u32 = input_idx.parse().map_err(PsetFinalizeError::InputIndexParse)?;
 	let input_idx_usize = input_idx as usize; // 32->usize cast ok on almost all systems
 
-	let program = Program::<jet::Elements>::from_str(program, Some(witness))
-		.map_err(PsetFinalizeError::ProgramParse)?;
+	let program =
+		Program::from_str(program, Some(witness)).map_err(PsetFinalizeError::ProgramParse)?;
+
+	let annex = (annex_padding_size > 0).then(|| {
+		let mut annex = vec![0u8; annex_padding_size];
+		annex[0] = TAPROOT_ANNEX_PREFIX;
+		annex
+	});
+
+	// The sighash commits to the annex, so the program has to run against a transaction
+	// that has it. rust-simplicity reads the annex from the input's witness, so stage it
+	// there. This also discards the witness from any earlier finalization.
+	if let Some(input) = pset.inputs_mut().get_mut(input_idx_usize) {
+		input.final_script_witness = annex.clone().map(|annex| vec![annex]);
+	}
 
 	// 2. Extract transaction environment.
 	let (tx_env, control_block, tap_leaf) =
@@ -62,28 +75,22 @@ pub fn pset_finalize(
 	let pruned = redeem_node.prune(&tx_env).map_err(PsetFinalizeError::ProgramPrune)?;
 
 	let (prog, witness) = pruned.to_vec_with_witness();
-	// If `execution_environment` above succeeded we are guaranteed that this index is in bounds.
-	let input = &mut pset.inputs_mut()[input_idx_usize];
+	let mut final_script_witness = vec![witness, prog, tap_leaf.into_bytes(), cb_serialized];
 
-	let final_script_witness = if annex_padding_size == 0 {
-		vec![witness, prog, tap_leaf.into_bytes(), cb_serialized]
-	} else {
-		let mut annex = vec![0u8; annex_padding_size];
-		annex[0] = TAPROOT_ANNEX_PREFIX;
-
-		vec![witness, prog, tap_leaf.into_bytes(), cb_serialized, annex]
-	};
-
-	// Calculate the budget and warn the user if it is not enough.
+	// 4. Check that the witness pays for the program's cost. The required padding is
+	// computed before adding the annex so that it is the total annex size needed.
 	let cost = pruned.bounds().cost;
+	let required = cost.get_padding(&final_script_witness).map_or(0, |annex| annex.len());
+	final_script_witness.extend(annex);
 	if !cost.is_budget_valid(&final_script_witness) {
-		let padding_required = cost.get_padding(&final_script_witness).map(|bytes| bytes.len());
 		return Err(PsetFinalizeError::CostExceedsBudget {
-			padding_required: padding_required.unwrap_or_default(),
+			required,
+			provided: annex_padding_size,
 		});
 	}
 
-	input.final_script_witness = Some(final_script_witness);
+	// If `execution_environment` above succeeded we are guaranteed that this index is in bounds.
+	pset.inputs_mut()[input_idx_usize].final_script_witness = Some(final_script_witness);
 
 	let updated_values = vec!["final_script_witness"];
 

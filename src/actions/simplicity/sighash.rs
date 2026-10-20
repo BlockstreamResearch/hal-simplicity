@@ -1,4 +1,5 @@
 use crate::hex_or_base64;
+use crate::simplicity::base64;
 use crate::simplicity::bitcoin::secp256k1::{
 	schnorr, Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey,
 };
@@ -10,10 +11,10 @@ use crate::simplicity::jet::elements::ElementsUtxo;
 use crate::simplicity::Cmr;
 
 use elements::bitcoin::secp256k1;
+use elements::bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
 use elements::hashes::Hash as _;
 use elements::pset::PartiallySignedTransaction;
 use serde::Serialize;
-use simplicity::base64;
 
 use crate::simplicity::elements::taproot::ControlBlock;
 use crate::simplicity::jet::elements::ElementsEnv;
@@ -95,8 +96,11 @@ pub enum SimplicitySighashError {
 	#[error("invalid input UTXO: {0}")]
 	InputUtxoParsing(ParseElementsUtxoError),
 
-	#[error("annex was not valid hex or base64:{0}")]
+	#[error("invalid annex: {0}")]
 	AnnexParsing(base64::DecodeError),
+
+	#[error("annex must start with the 0x50 prefix byte")]
+	AnnexMissingPrefix,
 }
 
 #[derive(Serialize)]
@@ -130,7 +134,7 @@ pub fn simplicity_sighash(
 	// In the future we should attempt to parse as a Bitcoin program if parsing as
 	// Elements fails. May be tricky/annoying in Rust since Program<Elements> is a
 	// different type from Program<Bitcoin>.
-	let tx = match pset {
+	let mut tx = match pset {
 		Some(ref pset) => pset.extract_tx().map_err(SimplicitySighashError::PsetExtraction)?,
 		None => {
 			let tx_bytes =
@@ -220,11 +224,25 @@ pub fn simplicity_sighash(
 		]),
 	};
 
-	let annex = annex
-		.map(|v| hex_or_base64(v).map_err(SimplicitySighashError::AnnexParsing))
-		.transpose()?;
+	// The sighash commits to the annex. rust-simplicity reads it from the last element of the
+	// input's witness, not from the `ElementsEnv` annex parameter, so put it there.
+	if let Some(annex) = annex {
+		let annex = hex_or_base64(annex).map_err(SimplicitySighashError::AnnexParsing)?;
+		if annex.first() != Some(&TAPROOT_ANNEX_PREFIX) {
+			return Err(SimplicitySighashError::AnnexMissingPrefix);
+		}
+		let n_inputs = tx.input.len();
+		let input = tx.input.get_mut(input_idx as usize).ok_or(
+			SimplicitySighashError::InputIndexOutOfRange {
+				index: input_idx,
+				n_inputs,
+			},
+		)?;
+		input.witness.script_witness = vec![annex];
+	}
+
 	let tx_env =
-		ElementsEnv::new(&tx, input_utxos, input_idx, cmr, control_block, annex, genesis_hash);
+		ElementsEnv::new(&tx, input_utxos, input_idx, cmr, control_block, None, genesis_hash);
 
 	let (pk, sig) = match (public_key, signature) {
 		(Some(pk), None) => (
