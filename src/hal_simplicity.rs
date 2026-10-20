@@ -3,7 +3,8 @@
 
 use std::sync::Arc;
 
-use elements::taproot::{TaprootBuilder, TaprootSpendInfo};
+use elements::schnorr::TweakedPublicKey;
+use elements::taproot::{ControlBlock, TaprootBuilder, TaprootSpendInfo};
 use simplicity::bitcoin::secp256k1;
 use simplicity::jet::Jet;
 use simplicity::{BitIter, CommitNode, DecodeError, ParseError, RedeemNode};
@@ -103,7 +104,9 @@ pub fn unspendable_internal_key() -> secp256k1::XOnlyPublicKey {
 	.expect("key should be valid")
 }
 
-fn script_ver(cmr: simplicity::Cmr) -> (elements::Script, elements::taproot::LeafVersion) {
+pub(crate) fn script_ver(
+	cmr: simplicity::Cmr,
+) -> (elements::Script, elements::taproot::LeafVersion) {
 	let script = elements::script::Script::from(cmr.as_ref().to_vec());
 	(script, simplicity::leaf_version())
 }
@@ -136,6 +139,27 @@ pub fn taproot_spend_info(
 	};
 
 	builder.finalize(secp256k1::SECP256K1, internal_key).expect("tap tree should be valid")
+}
+
+/// Whether `control_block` proves that the Simplicity leaf `cmr` is committed to
+/// by `script_pubkey`, for any Taptree shape.
+pub(crate) fn control_block_commits_to(
+	control_block: &ControlBlock,
+	cmr: simplicity::Cmr,
+	script_pubkey: &elements::Script,
+) -> bool {
+	let (script, version) = script_ver(cmr);
+	if control_block.leaf_version != version || !script_pubkey.is_v1_p2tr() {
+		return false;
+	}
+	match secp256k1::XOnlyPublicKey::from_slice(&script_pubkey[2..]) {
+		Ok(output_key) => control_block.verify_taproot_commitment(
+			secp256k1::SECP256K1,
+			&TweakedPublicKey::new(output_key),
+			&script,
+		),
+		Err(_) => false,
+	}
 }
 
 /// Given a Simplicity CMR, computes an unconfidential Elements address

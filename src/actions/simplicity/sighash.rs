@@ -17,6 +17,7 @@ use crate::simplicity::elements::taproot::ControlBlock;
 use crate::simplicity::jet::elements::ElementsEnv;
 
 use crate::actions::simplicity::ParseElementsUtxoError;
+use crate::hal_simplicity::control_block_commits_to;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SimplicitySighashError {
@@ -54,6 +55,12 @@ pub enum SimplicitySighashError {
 
 	#[error("with a raw transaction, control-block must be provided")]
 	ControlBlockRequired,
+
+	#[error("control block for CMR {cmr} does not match input scriptPubKey {script_pubkey}")]
+	ControlBlockMismatch {
+		cmr: String,
+		script_pubkey: String,
+	},
 
 	#[error("witness UTXO field not populated for input {input}")]
 	WitnessUtxoMissing {
@@ -203,6 +210,14 @@ pub fn simplicity_sighash(
 		});
 	}
 
+	let script_pubkey = &input_utxos[input_idx as usize].script_pubkey;
+	if !control_block_commits_to(&control_block, cmr, script_pubkey) {
+		return Err(SimplicitySighashError::ControlBlockMismatch {
+			cmr: cmr.to_string(),
+			script_pubkey: script_pubkey.to_string(),
+		});
+	}
+
 	// Default to Bitcoin blockhash.
 	let genesis_hash = match genesis_hash {
 		Some(s) => s.parse().map_err(SimplicitySighashError::GenesisHashParsing)?,
@@ -274,40 +289,50 @@ mod tests {
 	use super::*;
 
 	use elements::encode::serialize_hex;
-	use elements::{LockTime, Transaction, TxIn};
+	use elements::{LockTime, Script, Transaction, TxIn};
+
+	use crate::test_helpers::test_leaf;
 
 	const CMR: &str = "0000000000000000000000000000000000000000000000000000000000000000";
-	// Simplicity leaf version with the webide's hardcoded internal key.
-	const CONTROL_BLOCK: &str =
-		"bef5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2";
-	const UTXO: &str = "51:0000000000000000000000000000000000000000000000000000000000000000:0.0001";
 
-	#[test]
-	fn input_index_out_of_range_with_explicit_control_block() {
-		let tx = Transaction {
+	fn two_input_tx() -> Transaction {
+		Transaction {
 			version: 2,
 			lock_time: LockTime::ZERO,
 			input: vec![TxIn::default(), TxIn::default()],
 			output: vec![],
-		};
-		let sighash = |tx: &str, idx: &str| {
-			let utxos = [UTXO, UTXO];
-			simplicity_sighash(
-				tx,
-				idx,
-				CMR,
-				Some(CONTROL_BLOCK),
-				None,
-				None,
-				None,
-				None,
-				Some(&utxos),
-			)
-		};
+		}
+	}
 
+	/// Sighash using an explicit control block for `CMR`, with both input UTXOs
+	/// locked to `script_pubkey`.
+	fn sighash(
+		tx: &str,
+		idx: &str,
+		script_pubkey: &Script,
+	) -> Result<SighashInfo, SimplicitySighashError> {
+		let (control_block, _) = test_leaf(CMR.parse().unwrap());
+		let utxo = format!("{}:{}:0.0001", hex::encode(script_pubkey.as_bytes()), "00".repeat(32));
+		simplicity_sighash(
+			tx,
+			idx,
+			CMR,
+			Some(&hex::encode(control_block.serialize())),
+			None,
+			None,
+			None,
+			None,
+			Some(&[&utxo, &utxo]),
+		)
+	}
+
+	#[test]
+	fn input_index_out_of_range_with_explicit_control_block() {
+		let (_, script_pubkey) = test_leaf(CMR.parse().unwrap());
+		let tx = two_input_tx();
 		for tx in [serialize_hex(&tx), PartiallySignedTransaction::from_tx(tx).to_string()] {
-			assert!(sighash(&tx, "1").is_ok());
-			let err = sighash(&tx, "2").err();
+			assert!(sighash(&tx, "1", &script_pubkey).is_ok());
+			let err = sighash(&tx, "2", &script_pubkey).err();
 			assert!(
 				matches!(
 					err,
@@ -320,5 +345,16 @@ mod tests {
 				err
 			);
 		}
+	}
+
+	#[test]
+	fn control_block_must_match_input_utxo() {
+		let (_, other_script_pubkey) = test_leaf(Cmr::from_byte_array([1; 32]));
+		let err = sighash(&serialize_hex(&two_input_tx()), "0", &other_script_pubkey).err();
+		assert!(
+			matches!(err, Some(SimplicitySighashError::ControlBlockMismatch { .. })),
+			"{:?}",
+			err
+		);
 	}
 }
