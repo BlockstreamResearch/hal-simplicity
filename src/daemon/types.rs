@@ -140,6 +140,7 @@ pub struct SimplicitySighashRequest {
 	pub public_key: Option<String>,
 	pub signature: Option<String>,
 	pub input_utxos: Option<Vec<String>>,
+	pub annex: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -180,6 +181,7 @@ pub struct PsetFinalizeRequest {
 	pub program: String,
 	pub witness: String,
 	pub genesis_hash: Option<String>,
+	pub padding_bytes: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
