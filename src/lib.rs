@@ -9,6 +9,9 @@ pub mod tx;
 
 pub mod confidential;
 
+#[cfg(test)]
+mod test_helpers;
+
 pub use elements::bitcoin;
 pub use hal::HexBytes;
 

@@ -17,6 +17,7 @@ use crate::simplicity::elements::taproot::ControlBlock;
 use crate::simplicity::jet::elements::ElementsEnv;
 
 use crate::actions::simplicity::ParseElementsUtxoError;
+use crate::hal_simplicity::control_block_commits_to;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SimplicitySighashError {
@@ -41,7 +42,7 @@ pub enum SimplicitySighashError {
 	#[error("invalid control block decoding: {0}")]
 	ControlBlockDecoding(elements::taproot::TaprootError),
 
-	#[error("input index {index} out-of-range for PSET with {n_inputs} inputs")]
+	#[error("input index {index} out-of-range for transaction with {n_inputs} inputs")]
 	InputIndexOutOfRange {
 		index: u32,
 		n_inputs: usize,
@@ -54,6 +55,12 @@ pub enum SimplicitySighashError {
 
 	#[error("with a raw transaction, control-block must be provided")]
 	ControlBlockRequired,
+
+	#[error("control block for CMR {cmr} does not match input scriptPubKey {script_pubkey}")]
+	ControlBlockMismatch {
+		cmr: String,
+		script_pubkey: String,
+	},
 
 	#[error("witness UTXO field not populated for input {input}")]
 	WitnessUtxoMissing {
@@ -134,6 +141,13 @@ pub fn simplicity_sighash(
 		}
 	};
 	let input_idx: u32 = input_idx.parse().map_err(SimplicitySighashError::InputIndexParsing)?;
+	// Checked here because the PSET input lookup below is skipped when a control block is given.
+	if input_idx as usize >= tx.input.len() {
+		return Err(SimplicitySighashError::InputIndexOutOfRange {
+			index: input_idx,
+			n_inputs: tx.input.len(),
+		});
+	}
 	let cmr: Cmr = cmr.parse().map_err(SimplicitySighashError::CmrParsing)?;
 
 	// If the user specifies a control block, use it. Otherwise query the PSET.
@@ -143,14 +157,7 @@ pub fn simplicity_sighash(
 		// value f5919fa64ce45f8306849072b26c1bfdd2937e6b81774796ff372bd1eb5362d2
 		ControlBlock::from_slice(&cb_bytes).map_err(SimplicitySighashError::ControlBlockDecoding)?
 	} else if let Some(ref pset) = pset {
-		let n_inputs = pset.n_inputs();
-		let input = pset
-			.inputs()
-			.get(input_idx as usize) // cast u32->usize probably fine
-			.ok_or(SimplicitySighashError::InputIndexOutOfRange {
-				index: input_idx,
-				n_inputs,
-			})?;
+		let input = &pset.inputs()[input_idx as usize]; // bounds-checked above
 
 		let mut control_block = None;
 		for (cb, script_ver) in &input.tap_scripts {
@@ -200,6 +207,14 @@ pub fn simplicity_sighash(
 		return Err(SimplicitySighashError::InputUtxoCountMismatch {
 			expected: tx.input.len(),
 			actual: input_utxos.len(),
+		});
+	}
+
+	let script_pubkey = &input_utxos[input_idx as usize].script_pubkey;
+	if !control_block_commits_to(&control_block, cmr, script_pubkey) {
+		return Err(SimplicitySighashError::ControlBlockMismatch {
+			cmr: cmr.to_string(),
+			script_pubkey: script_pubkey.to_string(),
 		});
 	}
 
@@ -267,4 +282,79 @@ pub fn simplicity_sighash(
 			_ => None,
 		},
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use elements::encode::serialize_hex;
+	use elements::{LockTime, Script, Transaction, TxIn};
+
+	use crate::test_helpers::test_leaf;
+
+	const CMR: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+	fn two_input_tx() -> Transaction {
+		Transaction {
+			version: 2,
+			lock_time: LockTime::ZERO,
+			input: vec![TxIn::default(), TxIn::default()],
+			output: vec![],
+		}
+	}
+
+	/// Sighash using an explicit control block for `CMR`, with both input UTXOs
+	/// locked to `script_pubkey`.
+	fn sighash(
+		tx: &str,
+		idx: &str,
+		script_pubkey: &Script,
+	) -> Result<SighashInfo, SimplicitySighashError> {
+		let (control_block, _) = test_leaf(CMR.parse().unwrap());
+		let utxo = format!("{}:{}:0.0001", hex::encode(script_pubkey.as_bytes()), "00".repeat(32));
+		simplicity_sighash(
+			tx,
+			idx,
+			CMR,
+			Some(&hex::encode(control_block.serialize())),
+			None,
+			None,
+			None,
+			None,
+			Some(&[&utxo, &utxo]),
+		)
+	}
+
+	#[test]
+	fn input_index_out_of_range_with_explicit_control_block() {
+		let (_, script_pubkey) = test_leaf(CMR.parse().unwrap());
+		let tx = two_input_tx();
+		for tx in [serialize_hex(&tx), PartiallySignedTransaction::from_tx(tx).to_string()] {
+			assert!(sighash(&tx, "1", &script_pubkey).is_ok());
+			let err = sighash(&tx, "2", &script_pubkey).err();
+			assert!(
+				matches!(
+					err,
+					Some(SimplicitySighashError::InputIndexOutOfRange {
+						index: 2,
+						n_inputs: 2
+					})
+				),
+				"{:?}",
+				err
+			);
+		}
+	}
+
+	#[test]
+	fn control_block_must_match_input_utxo() {
+		let (_, other_script_pubkey) = test_leaf(Cmr::from_byte_array([1; 32]));
+		let err = sighash(&serialize_hex(&two_input_tx()), "0", &other_script_pubkey).err();
+		assert!(
+			matches!(err, Some(SimplicitySighashError::ControlBlockMismatch { .. })),
+			"{:?}",
+			err
+		);
+	}
 }
