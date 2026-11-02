@@ -12,9 +12,6 @@ pub mod confidential;
 pub use elements::bitcoin;
 pub use hal::HexBytes;
 
-#[cfg(feature = "daemon")]
-pub mod daemon;
-
 use elements::AddressParams;
 use serde::{Deserialize, Serialize};
 
