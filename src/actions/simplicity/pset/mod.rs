@@ -21,6 +21,7 @@ use elements::taproot::ControlBlock;
 use elements::Script;
 use serde::Serialize;
 
+use crate::hal_simplicity::control_block_commits_to;
 use crate::simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::simplicity::Cmr;
 
@@ -45,6 +46,12 @@ pub enum PsetError {
 
 	#[error("witness_utxo field not populated for input {0}")]
 	MissingWitnessUtxo(usize),
+
+	#[error("control block for CMR {cmr} does not match input scriptPubKey {script_pubkey}")]
+	ControlBlockMismatch {
+		cmr: String,
+		script_pubkey: String,
+	},
 }
 
 #[derive(Serialize)]
@@ -111,6 +118,14 @@ pub fn execution_environment(
 		})
 		.collect::<Result<Vec<_>, _>>()?;
 
+	let script_pubkey = &input_utxos[input_idx].script_pubkey;
+	if !control_block_commits_to(&control_block, cmr, script_pubkey) {
+		return Err(PsetError::ControlBlockMismatch {
+			cmr: cmr.to_string(),
+			script_pubkey: script_pubkey.to_string(),
+		});
+	}
+
 	let tx_env = ElementsEnv::new(
 		tx,
 		input_utxos,
@@ -122,4 +137,41 @@ pub fn execution_environment(
 	);
 
 	Ok((tx_env, control_block, tap_leaf))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use elements::{LockTime, Transaction, TxIn, TxOut};
+
+	use crate::hal_simplicity::script_ver;
+	use crate::test_helpers::test_leaf;
+
+	#[test]
+	fn control_block_must_match_witness_utxo() {
+		let cmr = Cmr::from_byte_array([0; 32]);
+		let (control_block, script_pubkey) = test_leaf(cmr);
+		let (_, other_script_pubkey) = test_leaf(Cmr::from_byte_array([1; 32]));
+
+		let pset_spending = |script_pubkey: Script| {
+			let mut pset = PartiallySignedTransaction::from_tx(Transaction {
+				version: 2,
+				lock_time: LockTime::ZERO,
+				input: vec![TxIn::default()],
+				output: vec![],
+			});
+			let input = &mut pset.inputs_mut()[0];
+			input.witness_utxo = Some(TxOut {
+				script_pubkey,
+				..TxOut::default()
+			});
+			input.tap_scripts.insert(control_block.clone(), script_ver(cmr));
+			pset
+		};
+
+		assert!(execution_environment(&pset_spending(script_pubkey), 0, cmr, None).is_ok());
+		let err = execution_environment(&pset_spending(other_script_pubkey), 0, cmr, None).err();
+		assert!(matches!(err, Some(PsetError::ControlBlockMismatch { .. })), "{:?}", err);
+	}
 }
