@@ -35,6 +35,7 @@ pub enum PsetCreateError {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct InputSpec {
 	txid: Txid,
 	vout: u32,
@@ -51,7 +52,7 @@ struct FlattenedOutputSpec {
 }
 
 #[derive(Deserialize)]
-#[serde(untagged)]
+#[serde(untagged, deny_unknown_fields)]
 enum OutputSpec {
 	Explicit {
 		address: String,
@@ -177,4 +178,88 @@ pub fn pset_create(inputs_json: &str, outputs_json: &str) -> Result<UpdatedPset,
 			// list them here? Or list none? Or what?
 		],
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use serde_json::json;
+
+	const TXID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+	const ASSET: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+	const ADDRESS: &str = "ert1qgqyvtapw3hp7p9anwf580rz4z0p4v9dy203prh";
+
+	#[test]
+	fn pset_create_rejects_unknown_input_fields() {
+		for value in [json!(1), json!("ignored"), json!(null)] {
+			let inputs = json!([{"txid": TXID, "vout": 1, "sequnce": value}]);
+			match pset_create(&inputs.to_string(), "[]") {
+				Err(PsetCreateError::InputsJsonParse(error)) => {
+					assert!(error.to_string().contains("unknown field `sequnce`"));
+				}
+				_ => panic!("expected unknown input field to be rejected: {inputs}"),
+			}
+		}
+	}
+
+	#[test]
+	fn pset_create_rejects_unknown_output_fields() {
+		for value in [json!(1), json!("ignored"), json!(null)] {
+			let outputs = json!([{
+				"address": "fee", "asset": ASSET, "amount": 0.5, "ammount": value,
+			}]);
+			assert!(
+				matches!(
+					pset_create("[]", &outputs.to_string()),
+					Err(PsetCreateError::OutputsJsonParse(_))
+				),
+				"expected unknown output field to be rejected: {outputs}"
+			);
+		}
+	}
+
+	#[test]
+	fn pset_create_preserves_input_sequences() {
+		let inputs = json!([
+			{"txid": TXID, "vout": 1},
+			{"txid": TXID, "vout": 2, "sequence": null},
+			{"txid": TXID, "vout": 3, "sequence": 0xfffffffe_u32},
+		]);
+		let result = pset_create(&inputs.to_string(), "[]").unwrap();
+		let pset: PartiallySignedTransaction = result.pset.parse().unwrap();
+		let tx = pset.extract_tx().unwrap();
+		assert_eq!(tx.input.len(), 3);
+		for (index, sequence) in [0xffffffff, 0xffffffff, 0xfffffffe].into_iter().enumerate() {
+			assert_eq!(tx.input[index].previous_output.txid.to_string(), TXID);
+			assert_eq!(tx.input[index].previous_output.vout, index as u32 + 1);
+			assert_eq!(tx.input[index].sequence.to_consensus_u32(), sequence);
+		}
+	}
+
+	#[test]
+	fn pset_create_preserves_output_formats() {
+		let outputs = json!([
+			{"address": ADDRESS, "asset": ASSET, "amount": 0.5},
+			{(ADDRESS): 0.5},
+			{"address": "fee", "asset": ASSET, "amount": 0.25},
+			{"fee": 0.25},
+			{"address": "data:abcd", "asset": ASSET, "amount": 0.0},
+			{"data:abcd": 0.0},
+		]);
+		let result = pset_create("[]", &outputs.to_string()).unwrap();
+		let pset: PartiallySignedTransaction = result.pset.parse().unwrap();
+		let tx = pset.extract_tx().unwrap();
+		assert_eq!(tx.output.len(), 6);
+		let expected_script = ADDRESS.parse::<Address>().unwrap().script_pubkey();
+		for (pair, (script, amount)) in tx.output.chunks_exact(2).zip([
+			(expected_script, 50_000_000),
+			(elements::Script::new(), 25_000_000),
+			(elements::Script::from(vec![0x6a, 0x02, 0xab, 0xcd]), 0),
+		]) {
+			for output in pair {
+				assert_eq!(output.script_pubkey, script);
+				assert_eq!(output.value.explicit(), Some(amount));
+			}
+		}
+	}
 }
